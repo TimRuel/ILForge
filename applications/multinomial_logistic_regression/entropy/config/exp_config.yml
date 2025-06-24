@@ -1,0 +1,45 @@
+experiment:
+  app: multinomial_logistic_regression
+  estimand: entropy
+  id: ~
+  sim_id: ~
+  run_id: ~
+X1_levels:
+  A:
+    X2:
+      dist:
+        name: rbeta
+        params: [2, 5]
+      support: [0, 1]
+    m: 60
+    ref_level: true
+    level_of_interest: false
+  B:
+    X2:
+      dist:
+        name: rbeta
+        params: [3, 3]
+      support: [0, 1]
+    m: 60
+    ref_level: false
+    level_of_interest: true
+  C:
+    X2:
+      dist:
+        name: rbeta
+        params: [5, 2]
+      support: [0, 1]
+    m: 60
+    ref_level: false
+    level_of_interest: false
+model_specs:
+  J: 6
+  entropy_range_specs:
+    offset: [0.3, 0.2]
+    padding: 0.75
+  reps:
+    Beta_0: 1000
+    pY_0: 1000000
+  formula: "Y~.^2 - 1"
+optimization_specs:
+  seed: 7835
