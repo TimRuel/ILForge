@@ -1,0 +1,80 @@
+experiment:
+  app: multinomial_logistic_regression
+  estimand: entropy
+  id: exp_v1.0.0
+  sim_id: sim_02
+  iter_id: iter_0003
+X1_levels:
+  A:
+    X2:
+      dist:
+        name: rbeta
+        params:
+        - 2
+        - 5
+      support:
+      - 0
+      - 1
+    m: 60
+    ref_level: true
+    level_of_interest: false
+  B:
+    X2:
+      dist:
+        name: rbeta
+        params:
+        - 3
+        - 3
+      support:
+      - 0
+      - 1
+    m: 60
+    ref_level: false
+    level_of_interest: true
+  C:
+    X2:
+      dist:
+        name: rbeta
+        params:
+        - 5
+        - 2
+      support:
+      - 0
+      - 1
+    m: 60
+    ref_level: false
+    level_of_interest: false
+model_specs:
+  J: 6
+  entropy_range_specs:
+    offset:
+    - 0.3
+    - 0.2
+    padding: 0.75
+  reps:
+    Beta_0: 1000
+    pY_0: 1000000
+  formula: Y~.^2 - 1
+  p: 6
+  'n': 180
+optimization_specs:
+  seed: 7835
+  IL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    num_std_errors: 5
+    init_guess_sd: 10
+    threshold_offset: 20
+    chunk_size: 4
+    max_cores: 128
+    num_workers: 64
+  PL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    alpha_levels:
+    - 0.1
+    - 0.05
+    - 0.01
+

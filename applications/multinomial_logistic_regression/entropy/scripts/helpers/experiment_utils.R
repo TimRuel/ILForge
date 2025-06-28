@@ -564,14 +564,14 @@ get_profile_LL <- function(config, X_design, model_df) {
   return(profile_LL)
 }
 
-get_report_objects <- function(run_dir) {
+get_report_objects <- function(iter_dir) {
   
-  data_dir <- here(run_dir, "data")
-  results_dir <- here(run_dir, "results")
-  config_path <- here(run_dir, "config_snapshot.yml")
+  data_dir <- here(iter_dir, "data")
+  results_dir <- here(iter_dir, "results")
+  config_path <- here(iter_dir, "config_snapshot.yml")
   config <- read_yaml(config_path)
-  experiment_id <- config$experiment$id
-  true_params_dir <- proj_path("experiments", experiment_id, "true_params")
+  exp_id <- config$experiment$id
+  true_params_dir <- here("experiments", exp_id, "true_params")
   
   integrated_LL <- readRDS(here(results_dir, "integrated_LL.rds"))
   profile_LL <- readRDS(here(results_dir, "profile_LL.rds"))

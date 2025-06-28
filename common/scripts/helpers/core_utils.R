@@ -11,13 +11,7 @@
 #' @export
 get_core_config <- function(requested_cores = NULL) {
   
-  mc_cores_env <- Sys.getenv("MC_CORES", unset = NA)
-  
-  max_cores <- if (!is.na(mc_cores_env)) {
-    as.integer(mc_cores_env)
-  } else {
-    parallel::detectCores()
-  }
+  max_cores <- parallel::detectCores()
   
   if (!is.null(requested_cores)) {
     if (is.na(requested_cores) || requested_cores <= 0) {

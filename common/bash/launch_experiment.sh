@@ -9,44 +9,50 @@
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=500M
 #SBATCH --ntasks-per-node=64
-#SBATCH --array=0-999
+#SBATCH --array=0-2
 
 # ===============================
-# ✅ Validate CLI Arguments
+# ✅ Validate CLI arguments
 # ===============================
-if [[ $# -lt 4 ]]; then
+if [[ $# -ne 4 ]]; then
   echo "❌ ERROR: Missing arguments."
-  echo "Usage: sbatch $0 <application_name> <estimand_name> <experiment_version> <sim_number>"
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <experiment_id> <sim_number>"
   exit 1
 fi
 
-APP_NAME="$1"               # e.g. multinomial_logistic_regression
-ESTIMAND="$2"               # e.g. entropy
-EXPERIMENT_VERSION="$3"     # e.g. v1.0.0
-SIM_NUM="$4"                # e.g. 1
+APP_NAME="$1"
+ESTIMAND="$2"
+EXP_ID="$3"
+SIM_NUM="$4"
 
-EXPERIMENT_ID=$(printf "exp_%s" "$EXPERIMENT_VERSION")
-SIM_ID=$(printf "sim_%02d" "$SIM_NUM")
-RUN_NUM=$((SLURM_ARRAY_TASK_ID + 1))
-RUN_ID=$(printf "iter_%04d" "$RUN_NUM")
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
 REQUESTED_CORES=$SLURM_NTASKS
+SIM_ID=$(printf "sim_%02d" "$SIM_NUM")
 
-SIM_DIR="experiments/${EXPERIMENT_ID}/simulations/${SIM_ID}"
-RUN_DIR="${SIM_DIR}/${RUN_ID}"
-LOG_DIR="${RUN_DIR}/logs"
+# ===============================
+# ✅ Resolve project root
+# ===============================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
 
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
 mkdir -p "$LOG_DIR"
 
 LOG_FILE="${LOG_DIR}/slurm_log.out"
 CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
 
-# Redirect stdout and stderr to log file
 exec > "$LOG_FILE" 2>&1
-
 echo "📌 Logging to $LOG_FILE"
 
 # ===============================
-# ✅ Load Environment
+# ✅ Load environment modules
 # ===============================
 module purge all
 module load R/4.4.0
@@ -58,10 +64,10 @@ module load nlopt/2.7.1-gcc-12.3.0
 module load git/2.37.2-gcc-10.4.0
 module load chrome/114.0.5735.90
 
-echo "🔁 Running Iteration $RUN_NUM of Simulation $SIM_NUM in Experiment $EXPERIMENT_VERSION ($APP_NAME / $ESTIMAND) with $REQUESTED_CORES cores..."
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_NUM in Experiment $EXP_ID ($APP_NAME / $ESTIMAND) with $REQUESTED_CORES cores..."
 
 # ===============================
-# ✅ Monitor checkjob in background
+# ✅ Background checkjob monitor
 # ===============================
 (
   while true; do
@@ -73,7 +79,7 @@ echo "🔁 Running Iteration $RUN_NUM of Simulation $SIM_NUM in Experiment $EXPE
 CHECKJOB_PID=$!
 
 # ===============================
-# ✅ Cleanup diagnostics on exit
+# ✅ Cleanup diagnostics
 # ===============================
 trap '
   echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
@@ -90,9 +96,9 @@ trap '
 ' EXIT
 
 # ===============================
-# ✅ Run R script
+# ✅ Run main R script
 # ===============================
-RSCRIPT_PATH="applications/${APP_NAME}/${ESTIMAND}/scripts/main.R"
+RSCRIPT_PATH="common/scripts/main.R"
 
 if [[ ! -f "$RSCRIPT_PATH" ]]; then
   echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
@@ -104,10 +110,7 @@ command -v Rscript >/dev/null 2>&1 || {
   exit 1
 }
 
-EXTRA_FLAGS=("--force" "--non-interactive")
-
 Rscript --max-connections=256 "$RSCRIPT_PATH" \
-  "$APP_NAME" "$ESTIMAND" "$EXPERIMENT_ID" "$REQUESTED_CORES" "$SIM_ID" "$RUN_ID" \
-  --force --non-interactive # Add: --skip-integrated, --skip-profile if needed
+  "$APP_NAME" "$ESTIMAND" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
 
-
+echo "✅ SLURM iteration complete: $ITER_ID"

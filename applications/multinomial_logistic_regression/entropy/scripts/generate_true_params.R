@@ -12,30 +12,35 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-i_am("applications/multinomial_logistic_regression/entropy/scripts/generate_true_params.R")
-
-# -------------------------------
-# ✅ Load helpers
-# -------------------------------
-helper_dir <- here("applications", "multinomial_logistic_regression", "entropy", "scripts", "helpers")
-miceadds::source.all(helper_dir, print.source = FALSE)
+suppressMessages(i_am("applications/multinomial_logistic_regression/entropy/scripts/generate_true_params.R"))
 
 # -------------------------------
 # ✅ Parse args
 # -------------------------------
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 1) stop("Usage: Rscript generate_true_params.R <experiment_id>")
-experiment_id <- args[1]
+if (length(args) < 1) stop("Usage: Rscript generate_true_params.R <exp_id>")
+exp_id <- args[1]
 
 # -------------------------------
 # ✅ Paths
 # -------------------------------
-config_path <- here("config", "exps", paste0(experiment_id, ".yml"))
-true_params_dir <- here("experiments", experiment_id, "true_params")
+estimand_helpers_dir <- here("applications", "multinomial_logistic_regression", "entropy", "scripts", "helpers")
+common_helpers_dir  <- here("common", "scripts", "helpers")
+config_path <- here("config", "exps", paste0(exp_id, ".yml"))
+true_params_dir <- here("experiments", exp_id, "true_params")
 dir_create(true_params_dir)
-
 if (!file.exists(config_path)) {
   stop("❌ Config file not found at: ", config_path)
+}
+
+# -------------------------------
+# ✅ Load helpers
+# -------------------------------
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
+if (dir_exists(estimand_helpers_dir)) {
+  miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+} else {
+  stop("[ERROR] Helper folder not found at ", estimand_helpers_dir)
 }
 
 # -------------------------------

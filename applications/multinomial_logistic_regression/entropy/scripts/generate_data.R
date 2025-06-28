@@ -12,22 +12,18 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-i_am("applications/multinomial_logistic_regression/entropy/scripts/generate_data.R")
+suppressMessages(i_am("applications/multinomial_logistic_regression/entropy/scripts/generate_data.R"))
 
 # -------------------------------
 # ✅ Parse arguments
 # -------------------------------
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) == 2) {
-  exp_id <- args[[1]]
-  sim_id <- NULL
-  run_id <- args[[2]]
-} else if (length(args) == 3) {
+if (length(args) == 3) {
   exp_id <- args[[1]]
   sim_id <- args[[2]]
-  run_id <- args[[3]]
+  iter_id <- args[[3]]
 } else {
-  stop("Usage: Rscript generate_data.R <exp_id> [sim_id] <run_id>")
+  stop("Usage: Rscript generate_data.R <exp_id> <sim_id> <iter_id>")
 }
 
 # -------------------------------
@@ -47,27 +43,24 @@ estimand    <- exp_config$experiment$estimand
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-helper_dir <- here("applications", app_name, estimand, "scripts", "helpers")
-miceadds::source.all(helper_dir, print.source = FALSE)
+estimand_helpers_dir <- here("applications", "multinomial_logistic_regression", "entropy", "scripts", "helpers")
+common_helpers_dir  <- here("common", "scripts", "helpers")
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
+miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
 
 # -------------------------------
 # ✅ Setup directories
 # -------------------------------
 true_params_dir <- here("experiments", exp_id, "true_params")
-run_dir <- if (is.null(sim_id)) {
-  here("experiments", exp_id, "individual_runs", run_id)
-} else {
-  here("experiments", exp_id, "simulations", sim_id, run_id)
-}
-data_dir <- here(run_dir, "data")
+iter_dir <- here("experiments", exp_id, "simulations", sim_id, iter_id)
+data_dir <- here("experiments", exp_id, "simulations", sim_id, iter_id, "data")
 dir_create(data_dir)
-
-config_snapshot_path <- path(run_dir, "config_snapshot.yml")
+config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 
 # -------------------------------
 # ✅ Step 1: Load true parameters
 # -------------------------------
-Beta_0_path <- path(true_params_dir, "Beta_0.rds")
+Beta_0_path <- here(true_params_dir, "Beta_0.rds")
 if (file_exists(Beta_0_path)) {
   message("[INFO] Loading Beta_0 from: ", Beta_0_path)
   Beta_0 <- readRDS(Beta_0_path)
@@ -78,8 +71,8 @@ if (file_exists(Beta_0_path)) {
 # -------------------------------
 # ✅ Step 2: Generate new data
 # -------------------------------
-message("[INFO] Generating new data for run: ", run_id)
-seed <- get_seed_for_run(opt_specs$seed, run_id)
+message("[INFO] Generating new data for iteration: ", iter_id)
+seed <- get_seed_for_iter(opt_specs$seed, iter_id)
 set.seed(seed)
 
 mm_formula <- substring(model_specs$formula, 2)
@@ -92,7 +85,7 @@ save_list_objects(data, data_dir)
 # -------------------------------
 config_snapshot <- exp_config
 config_snapshot$experiment$sim_id <- sim_id
-config_snapshot$experiment$run_id <- run_id
+config_snapshot$experiment$iter_id <- iter_id
 write_strict_yaml(config_snapshot, config_snapshot_path)
 
 message("[✓] Saved config snapshot to: ", config_snapshot_path)

@@ -1,5 +1,11 @@
 # applications/multinomial_logistic_regression/entropy/scripts/helpers/truth_utils.R
 
+softmax <- function(x) exp(x) / sum(exp(x))
+
+softmax_adj <- function(x) exp(x) / (1 + sum(exp(x)))
+
+entropy <- function(p) -sum(p * log(p), na.rm = TRUE)
+
 get_num_predictors <- function(X1_level_names, J) {
   
   ncol(model.matrix( ~ factor(X1_level_names)[1] * J - 1))

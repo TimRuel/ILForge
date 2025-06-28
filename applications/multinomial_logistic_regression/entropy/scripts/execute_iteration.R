@@ -1,4 +1,4 @@
-# applications/multinomial_logistic_regression/entropy/scripts/run_experiment.R
+# applications/multinomial_logistic_regression/entropy/scripts/execute_iteration.R
 
 #!/usr/bin/env Rscript
 
@@ -8,20 +8,21 @@ suppressPackageStartupMessages({
   library(yaml)
   library(fs)
   library(doFuture)
+  library(PolytomousUtils)
 })
 
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-i_am("applications/multinomial_logistic_regression/entropy/scripts/run_experiment.R")
+suppressMessages(i_am("applications/multinomial_logistic_regression/entropy/scripts/execute_iteration.R"))
 
 # -------------------------------
 # ✅ Parse arguments
 # -------------------------------
 args <- commandArgs(trailingOnly = TRUE)
-run_dir <- if (length(args) > 0) args[1] else stop("[ERROR] A run directory was not provided.")
-if (!file.exists(run_dir)) {
-  stop("[ERROR] Run directory does not exist at /", sub(".*(/?experiments/.*)", "\\1", run_dir))
+iter_dir <- if (length(args) > 0) args[1] else stop("[ERROR] An iteration directory was not provided.")
+if (!file.exists(iter_dir)) {
+  stop("[ERROR] Iteration directory does not exist at /", sub(".*(/?experiments/.*)", "\\1", iter_dir))
 }
 skip_integrated <- "--skip-integrated" %in% args
 skip_profile    <- "--skip-profile" %in% args
@@ -34,7 +35,7 @@ overall_start <- Sys.time()
 # -------------------------------
 # ✅ Load config snapshot
 # -------------------------------
-config_snapshot_path <- here("config_snapshot.yml")
+config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 config <- read_yaml(config_snapshot_path)
 app_name <- config$experiment$app_name
 estimand <- config$experiment$estimand
@@ -42,19 +43,15 @@ estimand <- config$experiment$estimand
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-common_helpers_dir <- here("common", "scripts", "helpers")
+estimand_helpers_dir <- here("applications", "multinomial_logistic_regression", "entropy", "scripts", "helpers")
+common_helpers_dir  <- here("common", "scripts", "helpers")
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
-estimand_helpers_dir <- here("applications", app_name, estimand, "scripts", "helpers")
-if (dir_exists(helper_dir)) {
-  miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
-} else {
-  stop("[ERROR] Helper folder not found at ", estimand_helpers_dir)
-}
+miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
 
 # -------------------------------
 # ✅ Load input data
 # -------------------------------
-data_dir <- here(run_dir, "data")
+data_dir <- here(iter_dir, "data")
 required_files <- c("X_design.rds", "model_df.rds")
 missing <- required_files[!file_exists(here(data_dir, required_files))]
 if (length(missing) > 0) {
@@ -66,7 +63,7 @@ model_df <- readRDS(here(data_dir, "model_df.rds"))
 # -------------------------------
 # ✅ Setup results directory
 # -------------------------------
-results_dir <- here(run_dir, "results")
+results_dir <- here(iter_dir, "results")
 dir_create(results_dir)
 
 # -------------------------------
@@ -115,7 +112,7 @@ if (!skip_profile) {
 # -------------------------------
 # ✅ Save report objects
 # -------------------------------
-report_objects <- get_report_objects(run_dir)
+report_objects <- get_report_objects(iter_dir)
 save_list_objects(report_objects, results_dir)
 
 # -------------------------------
@@ -137,9 +134,9 @@ git_hash <- tryCatch(
 metadata <- list(
   app_name         = app_name,
   estimand         = estimand,
-  experiment_id    = config$experiment$id,
+  exp_id    = config$experiment$id,
   sim_id           = config$experiment$sim_id,
-  run_id           = config$experiment$run_id,
+  iter_id           = config$experiment$iter_id,
   slurm_array_id   = Sys.getenv("SLURM_ARRAY_TASK_ID", unset = NA),
   timestamp_start  = overall_start,
   timestamp_end    = overall_end,
@@ -158,7 +155,7 @@ if (!skip_profile) {
 # -------------------------------
 # ✅ Save metadata
 # -------------------------------
-log_dir <- here(run_dir, "logs")
+log_dir <- here(iter_dir, "logs")
 dir_create(log_dir)
-save_run_metadata(metadata, log_dir)
+save_iter_metadata(metadata, log_dir)
 
