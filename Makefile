@@ -27,14 +27,14 @@ run:
 ## Submit to SLURM cluster
 slurm:
 	sbatch $(LAUNCH_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID)
-
+	
 ## Render iteration report (must exist and be renderable)
 iter_report:
 	./$(ITER_REPORT_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID) $(ITER_ID)
-
+	
 ## Render simulation report (must exist and be renderable)
 sim_report:
-	./$(SIM_REPORT_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID)
+	bash ./$(SIM_REPORT_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID)
 
 ## Clean a run directory
 clean:

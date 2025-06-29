@@ -25,6 +25,7 @@ get_X2 <- function(X1_levels) {
       list2env(level$X2, environment())
       args <- as.list(c(m, dist$params))
       samples <- do.call(dist$name, args)
+      support <- unlist(level$X2$support)
       X2_obs <- support[1] + diff(support) * samples
       set_names(X2_obs, rep(h, m))
     }) |> 

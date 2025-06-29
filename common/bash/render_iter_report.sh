@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # Usage: ./common/bash/render_iter_report.sh <APP> <ESTIMAND> <EXP_ID> <SIM_ID> <ITER_ID>
 # Example: ./common/bash/render_iter_report.sh multinomial_logistic_regression entropy exp_v1.0.0 sim_01 iter_0001

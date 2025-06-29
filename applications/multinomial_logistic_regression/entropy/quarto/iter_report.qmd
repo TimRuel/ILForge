@@ -15,14 +15,13 @@ library(tidyverse)
 library(ggrepel)
 library(kableExtra)
 library(zeallot)
-library(here)
 library(yaml)
 
 # -------------------------------
 # ✅ Load params from config
 # -------------------------------
 list2env(params, envir = environment())
-app_name <- experiment$app_name
+app_name <- experiment$app
 estimand <- experiment$estimand
 exp_id <- experiment$id
 sim_id <- experiment$sim_id
@@ -34,7 +33,7 @@ iter_id <- experiment$iter_id
 project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
 exp_dir <- file.path(project_root, "experiments", exp_id)
 true_params_dir <- file.path(exp_dir, "true_params")
-iter_dir <- file.path(exp_dir, sim_id, iter_id)
+iter_dir <- file.path(exp_dir, "simulations", sim_id, iter_id)
 data_dir <- file.path(iter_dir, "data")
 results_dir <- file.path(iter_dir, "results")
 estimand_helpers_dir <- file.path(project_root, "applications", app_name, estimand, "scripts", "helpers")
@@ -55,20 +54,23 @@ cat(header)
 ---
 
 ```{r include=FALSE}
-Y_probs <- readRDS(here(data_dir, "Y_probs.rds"))
-model_df <- readRDS(here(data_dir, "model_df.rds"))
+Y_probs <- readRDS(file.path(data_dir, "Y_probs.rds"))
+model_df <- readRDS(file.path(data_dir, "model_df.rds"))
 observed_plots <- get_observed_plots(X1_levels, Y_probs, model_df)
 ```
 
 ```{r include=FALSE}
 J <- model_specs$J
 entropy_range_specs <- model_specs$entropy_range_specs
+entropy_range_specs$offset <- unlist(entropy_range_specs$offset)
 entropy_ranges <- X1_levels |>
   names() |>
   get_entropy_ranges(J, entropy_range_specs)
 X1_levels_temp <- X1_levels |>
   imap(\(level, h) {
     level$X2$entropy_range <- entropy_ranges[[h]]
+    level$X2$dist$params <- unlist(level$X2$dist$params)
+    level$support <- unlist(level$support)
     level$m <- 1e5
     level
   })
@@ -77,21 +79,21 @@ X2 <- get_X2(X1_levels_temp)
 formula <- model_specs$formula
 mm_formula <- substring(formula, 2)
 X_design <- get_X_design(mm_formula, X1, X2)
-Beta_0 <- readRDS(here(true_params_dir, "Beta_0.rds"))
+Beta_0 <- readRDS(file.path(true_params_dir, "Beta_0.rds"))
 pY_0 <- get_Y_probs(X_design, Beta_0)
 theoretical_entropy_plot <- get_theoretical_entropy_plot(X1_levels_temp, pY_0)
 ```
 
 ```{r include=FALSE}
-integrated_LL <- readRDS(here(results_dir, "integrated_LL.rds"))
-profile_LL <- readRDS(here(results_dir, "profile_LL.rds"))
+integrated_LL <- readRDS(file.path(results_dir, "integrated_LL.rds"))
+profile_LL <- readRDS(file.path(results_dir, "profile_LL.rds"))
 IL_plot <- get_LL_plot(integrated_LL$log_L_bar_df)
 IL_branches_plot <- get_branches_plot(integrated_LL$branches_matrix)
 PL_plot <- get_LL_plot(profile_LL)
 ```
 
 ```{r include=FALSE}
-H_0 <- readRDS(here(true_params_dir, "H_0.rds"))
+H_0 <- readRDS(file.path(true_params_dir, "H_0.rds"))
 h <- get_X1_level_of_interest(X1_levels)
 psi_0 <- H_0 |>
   filter(X1 == h) |>
@@ -102,10 +104,10 @@ LL_df <- integrated_LL$log_L_bar_df |>
 
 LL_df_long <- get_LL_df_long(LL_df)
 
-alpha_levels <- optimization_specs$PL$alpha_levels
+alpha_levels <- unlist(optimization_specs$PL$alpha_levels)
 
-MLE_data <- readRDS(here(results_dir, "MLE_data.rds"))
-conf_ints <- readRDS(here(results_dir, "conf_ints.rds"))
+MLE_data <- readRDS(file.path(results_dir, "MLE_data.rds"))
+conf_ints <- readRDS(file.path(results_dir, "conf_ints.rds"))
 
 caption <- make_kable_caption(iter_dir)
 
