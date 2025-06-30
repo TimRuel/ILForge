@@ -31,7 +31,7 @@ QMD_PATH="${QMD_DIR}/${QMD_BASENAME}"
 # ✅ Validate input files
 # -------------------------------
 SIM_DIR="${PROJECT_ROOT}/experiments/${EXP_ID}/simulations/${SIM_ID}"
-CONFIG_PATH="${PROJECT_ROOT}/config/exps/${EXP_ID}.yml"
+CONFIG_PATH="${PROJECT_ROOT}/config/exps/${EXP_ID}"
 
 if [ ! -f "$CONFIG_PATH" ]; then
   echo "❌ ERROR: Config file not found at: $CONFIG_PATH"
@@ -62,7 +62,6 @@ cd "$QMD_DIR"
 CONFIG_RELATIVE="$(realpath --relative-to="$QMD_DIR" "$CONFIG_PATH")"
 
 quarto render "$QMD_BASENAME" \
-  -P sim_id:"$SIM_ID" \
   --execute-params "$CONFIG_RELATIVE" \
   --output "$BASENAME"
 
@@ -79,8 +78,8 @@ mv "$BASENAME" "$FINAL_PATH"
 # -------------------------------
 # ✅ Create symlink in simulation folder
 # -------------------------------
-RELATIVE_LINK="../../../../docs/sim_reports/${BASENAME}"
-ln -sf "$RELATIVE_LINK" "${SIM_DIR}/sim_report.html"
+RELATIVE_LINK="../../../../../docs/sim_reports/${BASENAME}"
+ln -sf "$RELATIVE_LINK" "${SIM_DIR}/report.html"
 
 echo "✅ Report saved to: $FINAL_PATH"
-echo "🔗 Symlink created at: ${SIM_DIR}/sim_report.html → $FINAL_PATH"
+echo "🔗 Symlink created at: ${SIM_DIR}/report.html → $FINAL_PATH"

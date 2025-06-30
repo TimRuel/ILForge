@@ -20,21 +20,18 @@ SIM_ID="$4"
 ITER_ID="$5"
 
 # -------------------------------
-# ✅ Resolve project root
+# ✅ Resolve project root and QMD directory
 # -------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-echo "SCRIPT_DIR: $SCRIPT_DIR"
-echo "PROJECT_ROOT: $PROJECT_ROOT"
-cd "$PROJECT_ROOT" || {
-  echo "❌ ERROR: Could not cd to project root"
-  exit 1
-}
+QMD_DIR="${PROJECT_ROOT}/applications/${APP}/${ESTIMAND}/quarto"
+QMD_BASENAME="iter_report.qmd"
+QMD_PATH="${QMD_DIR}/${QMD_BASENAME}"
 
 # -------------------------------
-# ✅ Construct config path
+# ✅ Validate input files
 # -------------------------------
-ITER_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}/${ITER_ID}"
+ITER_DIR="${PROJECT_ROOT}/experiments/${EXP_ID}/simulations/${SIM_ID}/${ITER_ID}"
 CONFIG_PATH="${ITER_DIR}/config_snapshot.yml"
 
 if [ ! -f "$CONFIG_PATH" ]; then
@@ -42,32 +39,31 @@ if [ ! -f "$CONFIG_PATH" ]; then
   exit 1
 fi
 
-# -------------------------------
-# ✅ Find the .qmd template
-# -------------------------------
-QMD_PATH="applications/${APP}/${ESTIMAND}/quarto/iter_report.qmd"
-
 if [ ! -f "$QMD_PATH" ]; then
   echo "❌ ERROR: Quarto template not found at: $QMD_PATH"
   exit 1
 fi
 
-# -------------------------------------
+# -------------------------------
 # ✅ Define output paths
-# -------------------------------------
+# -------------------------------
 BASENAME="${EXP_ID}_${SIM_ID}_${ITER_ID}_report.html"
-OUTPUT_DIR="docs/iter_reports"
+OUTPUT_DIR="${PROJECT_ROOT}/docs/iter_reports"
 FINAL_PATH="${OUTPUT_DIR}/${BASENAME}"
 
 mkdir -p "$OUTPUT_DIR"
 
 # -------------------------------
-# ✅ Render to working directory
+# ✅ Render self-contained in QMD directory
 # -------------------------------
-echo "🔧  Rendering report..."
-quarto render "$QMD_PATH" \
-  --to html-self-contained \
-  --execute-params "$CONFIG_PATH" \
+echo "🔧 Rendering report..."
+cd "$QMD_DIR"
+
+# Make config path relative to QMD directory
+CONFIG_RELATIVE="$(realpath --relative-to="$QMD_DIR" "$CONFIG_PATH")"
+
+quarto render "$QMD_BASENAME" \
+  --execute-params "$CONFIG_RELATIVE" \
   --output "$BASENAME"
 
 # -------------------------------
@@ -83,7 +79,8 @@ mv "$BASENAME" "$FINAL_PATH"
 # -------------------------------
 # ✅ Create symlink in iteration folder
 # -------------------------------
-ln -s "$FINAL_PATH" "${ITER_DIR}/report.html"
+RELATIVE_LINK="../../../../../docs/iter_reports/${BASENAME}"
+ln -sf "$RELATIVE_LINK" "${ITER_DIR}/iter_report.html"
 
-echo "✅  Report saved to: $FINAL_PATH"
-echo "🔗  Symlink created at: ${ITER_DIR}/report.html → $RELATIVE_LINK"
+echo "✅ Report saved to: $FINAL_PATH"
+echo "🔗 Symlink created at: ${ITER_DIR}/iter_report.html → $FINAL_PATH"

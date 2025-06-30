@@ -34,7 +34,7 @@ iter_report:
 	
 ## Render simulation report (must exist and be renderable)
 sim_report:
-	bash ./$(SIM_REPORT_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID)
+	./$(SIM_REPORT_SCRIPT) $(APP) $(ESTIMAND) $(EXP_ID) $(SIM_ID)
 
 ## Clean a run directory
 clean:

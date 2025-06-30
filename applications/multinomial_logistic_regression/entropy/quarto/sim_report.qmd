@@ -4,55 +4,75 @@ format:
   html:
     embed-resources: true
 params:
+  sim_id: null
   experiment: null
   X1_levels: null
   model_specs: null
   optimization_specs: null
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
+#| include: false
 library(tidyverse)
+library(ggrepel)
 library(kableExtra)
-library(here)
+library(zeallot)
 library(yaml)
 
-proj_subdir <- here("Integrated_Likelihood_Algorithm", "Polytomous_Logistic_Regression")
-proj_path <- function(...) here(proj_subdir, ...)
-miceadds::source.all(proj_path("scripts", "helpers"), print.source = FALSE)
-
+# -------------------------------
+# ✅ Load params from config
+# -------------------------------
 list2env(params, envir = environment())
-experiment_id <- experiment$id
-sim_id <- experiment$sim_id
-exp_dir <- proj_path("experiments", experiment_id)
-sim_dir <- here(exp_dir, "simulations", sim_id)
+app_name <- experiment$app
+estimand <- experiment$estimand
+exp_id <- experiment$id
+
+# -------------------------------
+# ✅ Define paths
+# -------------------------------
+project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
+exp_dir <- file.path(project_root, "experiments", exp_id)
+true_params_dir <- file.path(exp_dir, "true_params")
+sim_dir <- file.path(exp_dir, "simulations", sim_id)
 iter_dirs <- list.dirs(sim_dir, recursive = FALSE)
-true_params_dir <- proj_path("experiments", experiment_id, "true_params")
+estimand_helpers_dir <- file.path(project_root, "applications", app_name, estimand, "scripts", "helpers")
+common_helpers_dir <- file.path(project_root, "common", "scripts", "helpers")
+
+# -------------------------------
+# ✅ Load helpers
+# -------------------------------
+miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
 ```
 
-```{r, include=FALSE}
-H_0 <- readRDS(here(true_params_dir, "H_0.rds"))
+```{r}
+#| include: false
+H_0 <- readRDS(file.path(true_params_dir, "H_0.rds"))
 h <- get_X1_level_of_interest(X1_levels)
 psi_0 <- H_0 |>
   filter(X1 == h) |>
   pull(entropy)
 ```
 
-```{r, include=FALSE}
+```{r}
+#| include: false
 MLE_data_list <- iter_dirs |>
-  map(\(iter_dir) MLE_data <- readRDS(here(iter_dir, "results", "MLE_data.rds")))
+  map(\(iter_dir) readRDS(file.path(iter_dir, "results", "MLE_data.rds")))
 
 mle_summary_df <- summarize_mle_performance(MLE_data_list, psi_0)
 ```
 
-```{r, include=FALSE}
+```{r}
+#| include: false
 conf_ints_list <- iter_dirs |>
-  map(\(iter_dir) readRDS(here(iter_dir, "results", "conf_ints.rds")))
+  map(\(iter_dir) readRDS(file.path(iter_dir, "results", "conf_ints.rds")))
 
 ci_summary_df <- summarize_confidence_intervals(conf_ints_list, psi_0)
 ```
 
-```{r echo=FALSE, results="asis"}
-subtitle <- paste("Experiment", experiment_id, "— Simulation", sim_id)
+```{r results="asis"}
+#| echo: false
+subtitle <- paste("Experiment", exp_id, "— Simulation", sim_id)
 header <- paste("##", subtitle)
 cat(header)
 cat(paste("\nLevel of Interest:", h))
@@ -60,7 +80,8 @@ cat("\n")
 cat(paste("\nTrue Entropy:", round(psi_0, 3)))
 ```
 
-```{r, echo=FALSE}
+```{r}
+#| echo: false
 # --- Step 1: MLE block ---
 mle_rows <- mle_summary_df |>
   select(Metric = Source, Bias = bias, SD = sd, RMSE = rmse) |>
