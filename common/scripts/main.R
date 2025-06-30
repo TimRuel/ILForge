@@ -30,7 +30,7 @@ app_name <- args[1]
 estimand <- args[2]
 exp_id   <- args[3]
 sim_id   <- args[4]
-iter_id   <- args[5]
+iter_id  <- args[5]
 requested_cores <- if (length(args) >= 6 && !grepl("^--", args[6])) as.integer(args[6]) else NULL
 
 skip_integrated <- "--skip-integrated" %in% args
@@ -109,7 +109,7 @@ run_estimand_script("generate_data.R", c(exp_id, sim_id, iter_id))
 # -------------------------------
 # ✅ Add optimization config
 # -------------------------------
-config_snapshot_path <- here(iter_id, "config_snapshot.yml")
+config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 config_snapshot <- read_yaml(config_snapshot_path)
 
 opt_config_path <- estimand_path("config", "optimization.yml")

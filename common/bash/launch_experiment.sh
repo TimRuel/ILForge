@@ -16,26 +16,28 @@
 # ===============================
 if [[ $# -ne 4 ]]; then
   echo "❌ ERROR: Missing arguments."
-  echo "Usage: sbatch $0 <application_name> <estimand_name> <experiment_id> <sim_number>"
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <experiment_id> <simulation_id>"
   exit 1
 fi
 
 APP_NAME="$1"
 ESTIMAND="$2"
 EXP_ID="$3"
-SIM_NUM="$4"
+SIM_ID="$4"
 
 ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
 ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
 REQUESTED_CORES=$SLURM_NTASKS
-SIM_ID=$(printf "sim_%02d" "$SIM_NUM")
 
 # ===============================
 # ✅ Resolve project root
 # ===============================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT" || exit 1
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
 
 # ===============================
 # ✅ Logging setup
@@ -64,7 +66,7 @@ module load nlopt/2.7.1-gcc-12.3.0
 module load git/2.37.2-gcc-10.4.0
 module load chrome/114.0.5735.90
 
-echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_NUM in Experiment $EXP_ID ($APP_NAME / $ESTIMAND) with $REQUESTED_CORES cores..."
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND) with $REQUESTED_CORES cores..."
 
 # ===============================
 # ✅ Background checkjob monitor

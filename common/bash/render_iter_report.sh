@@ -24,7 +24,12 @@ ITER_ID="$5"
 # -------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT"
+echo "SCRIPT_DIR: $SCRIPT_DIR"
+echo "PROJECT_ROOT: $PROJECT_ROOT"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Could not cd to project root"
+  exit 1
+}
 
 # -------------------------------
 # ✅ Construct config path
@@ -48,24 +53,37 @@ if [ ! -f "$QMD_PATH" ]; then
 fi
 
 # -------------------------------------
-# ✅ Define output name and render
+# ✅ Define output paths
 # -------------------------------------
-OUTPUT_NAME="${EXP_ID}_${SIM_ID}_${ITER_ID}_report.html"
+BASENAME="${EXP_ID}_${SIM_ID}_${ITER_ID}_report.html"
 OUTPUT_DIR="docs/iter_reports"
-OUTPUT_PATH="${OUTPUT_DIR}/${OUTPUT_NAME}"
+FINAL_PATH="${OUTPUT_DIR}/${BASENAME}"
 
 mkdir -p "$OUTPUT_DIR"
 
+# -------------------------------
+# ✅ Render to working directory
+# -------------------------------
+echo "🔧  Rendering report..."
 quarto render "$QMD_PATH" \
+  --to html-self-contained \
   --execute-params "$CONFIG_PATH" \
-  --output "$OUTPUT_NAME"
+  --output "$BASENAME"
 
-mv "$OUTPUT_NAME" "$OUTPUT_PATH"
+# -------------------------------
+# ✅ Move to final location
+# -------------------------------
+if [ ! -f "$BASENAME" ]; then
+  echo "❌ ERROR: Expected report not found: $BASENAME"
+  exit 1
+fi
 
-# ----------------------------------------------
-# ✅ Symlink report in iteration directory
-# ----------------------------------------------
-ln -sf "../../../../../$OUTPUT_PATH" "${ITER_DIR}/report.html"
+mv "$BASENAME" "$FINAL_PATH"
 
-echo "✅ Report saved to: $OUTPUT_PATH"
-echo "🔗 Symlink created in: ${ITER_DIR}/report.html"
+# -------------------------------
+# ✅ Create symlink in iteration folder
+# -------------------------------
+ln -s "$FINAL_PATH" "${ITER_DIR}/report.html"
+
+echo "✅  Report saved to: $FINAL_PATH"
+echo "🔗  Symlink created at: ${ITER_DIR}/report.html → $RELATIVE_LINK"
