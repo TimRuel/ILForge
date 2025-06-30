@@ -46,7 +46,7 @@ fi
 # -------------------------------
 # ✅ Define output paths
 # -------------------------------
-BASENAME="${EXP_ID}_${SIM_ID}_report.html"
+BASENAME="${EXP_ID}_${SIM_ID}.html"
 OUTPUT_DIR="${PROJECT_ROOT}/docs/sim_reports"
 FINAL_PATH="${OUTPUT_DIR}/${BASENAME}"
 

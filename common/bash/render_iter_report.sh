@@ -47,7 +47,7 @@ fi
 # -------------------------------
 # ✅ Define output paths
 # -------------------------------
-BASENAME="${EXP_ID}_${SIM_ID}_${ITER_ID}_report.html"
+BASENAME="${EXP_ID}_${SIM_ID}_${ITER_ID}.html"
 OUTPUT_DIR="${PROJECT_ROOT}/docs/iter_reports"
 FINAL_PATH="${OUTPUT_DIR}/${BASENAME}"
 
