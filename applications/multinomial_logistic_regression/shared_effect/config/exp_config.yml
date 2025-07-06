@@ -1,0 +1,49 @@
+experiment:
+  app: multinomial_logistic_regression          # Type of model
+  estimand: shared_effect                       # Parameter of interest
+  id: ~                                         # Experiment ID
+  sim_id: ~                                     # Simulation ID (if applicable)
+  iter_id: ~                                    # Iteration ID within a simulation
+
+data_generation:
+  seed: 5387                                    # Random seed for reproducibility
+  n_obs: 500                                    # Number of observations to simulate
+  validate_only: false                          # If true, just validate config without simulating
+
+model:
+  response:
+    name: Y
+    num_classes: 6                              # Total number of response categories
+    reference_class: 6                          # Index (1-based) of the baseline category
+    num_effects: 5                              # Should equal num_classes - 1
+
+  predictors:
+    shared:
+      - name: Z
+        effect: 1.2                              # Shared effect across all logits
+        distribution:
+          type: normal
+          parameters:
+            mean: 0
+            sd: 1
+
+    class_specific:
+      - name: X1
+        effects: [1.0, -1.0, 0.5, 0.5, 0.0]      # Effects for classes 1–5 (relative to ref)
+        distribution:
+          type: normal
+          parameters:
+            mean: 0
+            sd: 1
+
+      - name: X2
+        effects: [0.5, 0.5, -0.5, 0.0, 0.3]
+        distribution:
+          type: normal
+          parameters:
+            mean: 0
+            sd: 1
+
+  intercepts: [0.5, -0.5, 0.2, -0.1, 0.0]        # One per non-reference class (length = num_effects)
+
+  interactions: []                               # Optional future interaction terms
