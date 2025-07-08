@@ -52,12 +52,6 @@ miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
 # ✅ Load input data
 # -------------------------------
 data_dir <- here(iter_dir, "data")
-required_files <- c("X_design.rds", "model_df.rds")
-missing <- required_files[!file_exists(here(data_dir, required_files))]
-if (length(missing) > 0) {
-  stop("Missing required data files: ", paste(missing, collapse = ", "))
-}
-X_design <- readRDS(here(data_dir, "X_design.rds"))
 model_df <- readRDS(here(data_dir, "model_df.rds"))
 
 # -------------------------------
@@ -77,7 +71,7 @@ if (!skip_integrated) {
   plan_strategy <- if (.Platform$OS.type == "unix") multicore else multisession
   plan(plan_strategy, workers = I(num_workers))
   
-  integrated_LL <- get_integrated_LL(config, X_design, model_df)
+  integrated_LL <- get_integrated_LL(config, model_df)
   plan(sequential)
   
   saveRDS(integrated_LL, file = here(results_dir, "integrated_LL.rds"))
@@ -98,7 +92,7 @@ if (!skip_profile) {
   plan_strategy <- if (.Platform$OS.type == "unix") multicore else multisession
   plan(plan_strategy, workers = I(2))
   
-  profile_LL <- get_profile_LL(config, X_design, model_df)
+  profile_LL <- get_profile_LL(config, model_df)
   plan(sequential)
   
   saveRDS(profile_LL, file = here(results_dir, "profile_LL.rds"))
@@ -134,9 +128,9 @@ git_hash <- tryCatch(
 metadata <- list(
   app_name         = app_name,
   estimand         = estimand,
-  exp_id    = config$experiment$id,
+  exp_id           = config$experiment$id,
   sim_id           = config$experiment$sim_id,
-  iter_id           = config$experiment$iter_id,
+  iter_id          = config$experiment$iter_id,
   slurm_array_id   = Sys.getenv("SLURM_ARRAY_TASK_ID", unset = NA),
   timestamp_start  = overall_start,
   timestamp_end    = overall_end,

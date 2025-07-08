@@ -1,6 +1,6 @@
 # applications/multinomial_logistic_regression/shared_effect/scripts/helpers/truth_utils.R
 
-get_Beta_0_from_config <- function(config) {
+get_Beta_0 <- function(config) {
   
   model <- config$model
   num_effects <- model$response$num_effects
@@ -14,23 +14,12 @@ get_Beta_0_from_config <- function(config) {
   stopifnot(length(intercepts) == num_effects)
   beta_rows[["Intercept"]] <- intercepts
   
-  # Shared predictors
-  if (!is.null(model$predictors$shared)) {
-    for (pred in model$predictors$shared) {
-      name <- pred$name
-      effect <- pred$effect
-      beta_rows[[name]] <- rep(effect, num_effects)
-    }
-  }
-  
   # Class-specific predictors
-  if (!is.null(model$predictors$class_specific)) {
-    for (pred in model$predictors$class_specific) {
-      name <- pred$name
-      effects <- pred$effects
-      stopifnot(length(effects) == num_effects)
-      beta_rows[[name]] <- effects
-    }
+  for (pred in model$predictors$class_specific) {
+    name <- pred$name
+    effects <- pred$effects
+    stopifnot(length(effects) == num_effects)
+    beta_rows[[name]] <- effects
   }
   
   # Combine into matrix
@@ -40,3 +29,6 @@ get_Beta_0_from_config <- function(config) {
   
   return(Beta_0)
 }
+
+get_psi_0 <- function(config) config$model$predictors$shared$effect
+

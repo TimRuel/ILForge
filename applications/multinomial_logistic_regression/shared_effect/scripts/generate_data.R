@@ -55,12 +55,12 @@ config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 # -------------------------------
 # ✅ Step 1: Load true parameters
 # -------------------------------
-Beta_0_path <- here(true_params_dir, "Beta_0.rds")
-if (file_exists(Beta_0_path)) {
-  message("[INFO] Loading Beta_0 from: ", Beta_0_path)
-  Beta_0 <- readRDS(Beta_0_path)
+theta_0_path <- here(true_params_dir, "theta_0.rds")
+if (file_exists(theta_0_path)) {
+  message("[INFO] Loading theta_0 from: ", theta_0_path)
+  theta_0 <- readRDS(theta_0_path)
 } else {
-  stop("[ERROR] Beta_0.rds not found at: ", Beta_0_path)
+  stop("[ERROR] theta_0.rds not found at: ", theta_0_path)
 }
 
 # -------------------------------
@@ -70,7 +70,7 @@ message("[INFO] Generating new data for iteration: ", iter_id)
 seed <- get_seed_for_iter(exp_config$data_generation$seed, iter_id)
 set.seed(seed)
 
-data <- generate_data(exp_config, Beta_0)
+data <- generate_data(exp_config, theta_0)
 save_list_objects(data, data_dir)
 
 # -------------------------------

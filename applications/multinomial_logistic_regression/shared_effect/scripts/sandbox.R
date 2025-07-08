@@ -1,4 +1,5 @@
 library(VGAM)
+library(tidyverse)
 
 set.seed(1)
 n <- 500
@@ -152,4 +153,88 @@ CI2
 diff(CI1)
 diff(CI2)
 
+###########################################################################
+###########################################################################
+###########################################################################
+
+formula <- Y ~ Z + X1 + X2
+
+C <- list("(Intercept)" = diag(5),           
+          "Z" = matrix(1, nrow = 5, ncol = 1), 
+          "X1" = diag(5),                     
+          "X2" = diag(5))
+
+ref_level <- 6
+
+model <- fit_model(model_df, formula, C, ref_level)
+
+Beta_MLE <- get_Beta_MLE(model)
+
+psi_hat <- get_psi_hat(model)
+
+X <- model_df |> 
+  select(starts_with("X")) |> 
+  as.matrix()
+X <- cbind(1, X)
+
+Z <- model_df$Z
+
+Y_one_hot <- model.matrix(~ Y - 1, data = model_df)
+Y_one_hot <- Y_one_hot[, 1:(ref_level-1)]
+
+log_likelihood(X, Y_one_hot, Z, psi_hat, Beta_MLE)
+
+mu <- get_E_Y(Z, X, psi_hat, Beta_MLE)
+
+log_likelihood(X, mu, Z, psi_hat + 1, Beta_MLE)
+
+alpha <- 0.05
+
+psi_hat_se <- VGAM::summaryvglm(model)@coef3["Z", "Std. Error"]
+
+num_se <- qnorm(1-alpha/2)
+
+interval <- psi_hat + c(-3, 1) * psi_hat_se * num_se
+
+vcov_Beta <- vcov(model)
+
+Sigma <- vcov_Beta[-6, -6]
+
+phi <- MASS::mvrnorm(1, gdata::unmatrix(Beta_MLE, byrow=TRUE), Sigma) |>
+  matrix(nrow = nrow(Beta_MLE),
+         ncol = ncol(Beta_MLE),
+         byrow = TRUE)
+
+mu <- get_E_Y(Z, X, psi_hat, phi)
+
+branch <- function(psi) {
+  
+  Beta_hat_obj_fn <- function(Beta) {
+    
+    Beta <- Beta |> 
+      matrix(nrow = nrow(phi),
+             ncol = ncol(phi),
+             byrow = TRUE)
+    
+    return(-log_likelihood(X, mu, Z, psi, Beta))
+  }
+  
+  Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, gdata::unmatrix(phi, byrow=TRUE)) |> 
+    matrix(nrow = nrow(phi),
+           ncol = ncol(phi),
+           byrow = TRUE)
+  
+  return(log_likelihood(X, Y_one_hot, Z, psi, Beta_hat))
+}
+
+psi_grid <- seq(interval[1], interval[2], 0.05)
+
+log_L_tilde <- purrr::map_dbl(psi_grid, branch)
+
+plot(psi_grid, log_L_tilde)
+
+get_branch_mode(phi, psi_hat, Z, Y_one_hot, X, interval) 
+
+library(gdata)
+gdata::unmatrix(Beta_MLE, byrow=TRUE) |> unname()
 

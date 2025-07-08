@@ -15,33 +15,34 @@ get_Beta_MLE <- function(model) {
   intercepts <- coefs[startsWith(names(coefs), "(Intercept)")] |> 
     unname()
   
-  Z_coef <- coefs["Z"] |> 
-    rep(Jm1) |> 
-    unname()
-  
   X_coefs <- coefs[startsWith(names(coefs), "X")] |> 
     matrix(ncol = Jm1,
            byrow = TRUE)
   
-  Beta_MLE <- do.call(rbind, list(intercepts, Z_coef, X_coefs))
+  Beta_MLE <- do.call(rbind, list(intercepts, X_coefs))
   
   colnames(Beta_MLE) <- paste0("Class", seq_len(Jm1))
-  rownames(Beta_MLE) <- c("Intercept", "Z", paste0("X", 1:nrow(X_coefs)))
+  rownames(Beta_MLE) <- c("Intercept", paste0("X", 1:nrow(X_coefs)))
   
   return(Beta_MLE)
 }
 
-log_likelihood <- function(Beta, X_design, Y_design) {
+get_psi_hat <- function(model) unname(coef(model)["Z"])
+
+log_likelihood <- function(X, Y_one_hot, Z, psi, Beta) {
   
-  eta <- X_design %*% Beta
-  sum(rowSums(Y_design * eta) - log(1 + rowSums(exp(eta))))
+  eta <- get_eta(Z, X, psi, Beta)
+  sum(rowSums(Y_one_hot * eta) - log(1 + rowSums(exp(eta))))
 }
 
-likelihood <- function(Beta, X_design, Y_design) exp(log_likelihood(Beta, X_design, Y_design))
+likelihood <- function(X, Y_one_hot, Z, psi, Beta) exp(log_likelihood(X, Y_one_hot, Z, psi, Beta))
 
-get_psi_hat_from_model <- function(model) unname(coef(model)["Z"])
-
-get_psi_hat_from_MLE <- function(Beta_MLE) unique(Beta_MLE["Z",])
+get_E_Y <- function(Z, X, psi, Beta) {
+  
+  get_eta(Z, X, psi, Beta) |>
+    apply(1, softmax_adj) |>
+    t()
+}
 
 safe_auglag <- purrr::possibly(nloptr::auglag)
 
@@ -112,38 +113,43 @@ get_fine_psi_grid <- function(psi_grid,
 
 # Beta_hat ----------------------------------------------------------------
 
-get_Beta_hat_template <- function(obj_fn, init_guess) {
+get_Beta_hat <- function(Beta_hat_obj_fn, init_guess) {
   
   safe_auglag(
     x0 = init_guess,
-    fn = obj_fn,
+    fn = Beta_hat_obj_fn,
     localsolver = "SLSQP",
     deprecatedBehavior = FALSE)$par
 }
 
 # Branch Parameters ---------------------------------------------------------------
 
-get_branch_mode <- function(phi,
-                            X_design,
-                            Y_design,
-                            X_h_design, 
-                            Jm1,
-                            p,
-                            n) {
+get_branch_mode <- function(phi, psi_hat, Z, Y_one_hot, X, interval) {
   
-  Beta_hat_obj_fn <- function(Beta) Beta_hat_obj_fn_rcpp(Beta, X_design, omega_hat, Jm1, p, n)
+  mu <- get_E_Y(Z, X, psi_hat, phi)
   
-  omega_hat_branch <- function(psi) {
+  branch <- function(psi) {
     
-    Beta_hat_con_fn <- function(Beta) Beta_hat_con_fn_rcpp(Beta, X_h_design, psi, Jm1, p)
+    Beta_hat_obj_fn <- function(Beta) {
+      
+      Beta <- Beta |> 
+        matrix(nrow = nrow(phi),
+               ncol = ncol(phi),
+               byrow = TRUE)
+      
+      return(-log_likelihood(X, mu, Z, psi, Beta))
+    }
     
-    Beta_hat <- get_Beta_hat_template(Beta_hat_obj_fn, Beta_hat_con_fn, c(omega_hat))
+    Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, gdata::unmatrix(phi, byrow=TRUE)) |> 
+      matrix(nrow = nrow(phi),
+             ncol = ncol(phi),
+             byrow = TRUE)
     
-    return(log_likelihood(Beta_hat, X_design, Y_design, Jm1, p, n))
+    return(log_likelihood(X, Y_one_hot, Z, psi, Beta_hat))
   }
   
-  optimize(omega_hat_branch,
-           interval = c(0, log(Jm1 + 1)),
+  optimize(branch,
+           interval = interval,
            maximum = TRUE,
            tol = 0.1)$maximum
 }
