@@ -194,11 +194,15 @@ psi_hat_se <- VGAM::summaryvglm(model)@coef3["Z", "Std. Error"]
 
 num_se <- qnorm(1-alpha/2)
 
-interval <- psi_hat + c(-3, 1) * psi_hat_se * num_se
+interval <- psi_hat + c(-2, 2) * psi_hat_se * num_se
 
 vcov_Beta <- vcov(model)
 
 Sigma <- vcov_Beta[-6, -6]
+
+vcov_Beta[!rownames(vcov_Beta) %in% "Z", !colnames(vcov_Beta) %in% "Z"]
+
+vcov_Beta[-"Z"]
 
 phi <- MASS::mvrnorm(1, gdata::unmatrix(Beta_MLE, byrow=TRUE), Sigma) |>
   matrix(nrow = nrow(Beta_MLE),
@@ -237,4 +241,17 @@ get_branch_mode(phi, psi_hat, Z, Y_one_hot, X, interval)
 
 library(gdata)
 gdata::unmatrix(Beta_MLE, byrow=TRUE) |> unname()
+
+library(foreach)
+library(doFuture)
+plan(multisession)
+registerDoFuture()
+
+foreach(i = 1:3) %dofuture% {
+  i^2
+}
+
+
+config <- yaml::read_yaml("C:/Northwestern/ILForge/experiments/exp_v2.0.0/simulations/sim_01/iter_01/config_snapshot.yml")
+model_df <- readRDS("C:/Northwestern/ILForge/experiments/exp_v2.0.0/simulations/sim_01/iter_01/data/model_df.rds")
 

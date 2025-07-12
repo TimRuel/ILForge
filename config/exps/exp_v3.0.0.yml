@@ -1,11 +1,11 @@
 experiment:
   app: multinomial_logistic_regression
   estimand: shared_effect
-  id: exp_v2.0.0
-  sim_id: sim_01
-  iter_id: iter_01
+  id: exp_v3.0.0
+  sim_id: ~
+  iter_id: ~
 data_generation:
-  seed: 5387
+  seed: 1996
   n_obs: 500
   validate_only: false
 model:
@@ -55,24 +55,5 @@ model:
   - -0.1
   - 0.0
   interactions: []
-  formula: Y ~ Z + X1 + X2
-optimization_specs:
-  IL:
-    step_size: 0.01
-    fine_step_size: 0.005
-    fine_window: 0.05
-    num_std_errors:
-    - -3
-    - 3
-    chunk_size: 4
-    max_cores: 12
-    num_workers: 12
-  PL:
-    step_size: 0.01
-    fine_step_size: 0.005
-    fine_window: 0.05
-    alpha_levels:
-    - 0.1
-    - 0.05
-    - 0.01
+  formula: Y ~ Z + X1*X2
 

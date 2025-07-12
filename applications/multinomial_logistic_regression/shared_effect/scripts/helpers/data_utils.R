@@ -16,7 +16,6 @@ generate_data <- function(config, theta_0) {
   
   # Shared predictor
   dist <- model$predictors$shared$distribution
-  print(model)
   if (dist$type == "normal") {
     Z <- rnorm(n, mean = dist$parameters$mean, sd = dist$parameters$sd)
   } else {

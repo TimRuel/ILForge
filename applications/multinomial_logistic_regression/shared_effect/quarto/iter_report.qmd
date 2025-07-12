@@ -1,0 +1,107 @@
+---
+title: "Iteration Report"
+format: 
+  html:
+    embed-resources: true
+params:
+  experiment: null
+  data_generation: null
+  model: null
+  optimization_specs: null
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggrepel)
+library(kableExtra)
+library(zeallot)
+library(yaml)
+
+# -------------------------------
+# ✅ Load params from config
+# -------------------------------
+list2env(params, envir = environment())
+app_name <- experiment$app
+estimand <- experiment$estimand
+exp_id <- experiment$id
+sim_id <- experiment$sim_id
+iter_id <- experiment$iter_id
+
+# -------------------------------
+# ✅ Define paths
+# -------------------------------
+project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
+exp_dir <- file.path(project_root, "experiments", exp_id)
+true_params_dir <- file.path(exp_dir, "true_params")
+iter_dir <- file.path(exp_dir, "simulations", sim_id, iter_id)
+results_dir <- file.path(iter_dir, "results")
+estimand_helpers_dir <- file.path(project_root, "applications", app_name, estimand, "scripts", "helpers")
+common_helpers_dir <- file.path(project_root, "common", "scripts", "helpers")
+
+# -------------------------------
+# ✅ Load helpers
+# -------------------------------
+miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
+```
+
+```{r echo=FALSE, results="asis"}
+header <- paste("####", "Experiment", exp_id, "— Simulation", sim_id, "— Iteration", iter_id)
+cat(header)
+```
+
+---
+
+```{r include=FALSE}
+integrated_LL <- readRDS(file.path(results_dir, "integrated_LL.rds"))
+profile_LL <- readRDS(file.path(results_dir, "profile_LL.rds"))
+IL_plot <- get_LL_plot(integrated_LL$log_L_bar_df)
+IL_branches_plot <- get_branches_plot(integrated_LL$branches_matrix)
+PL_plot <- get_LL_plot(profile_LL)
+```
+
+```{r include=FALSE}
+theta_0 <- readRDS(file.path(true_params_dir, "theta_0.rds"))
+psi_0 <- theta_0$psi_0
+
+LL_df <- integrated_LL$log_L_bar_df |>
+  merge(profile_LL, all = TRUE)
+
+LL_df_long <- get_LL_df_long(LL_df)
+
+alpha_levels <- unlist(optimization_specs$PL$alpha_levels)
+
+MLE_data <- readRDS(file.path(results_dir, "MLE_data.rds"))
+conf_ints <- readRDS(file.path(results_dir, "conf_ints.rds"))
+
+caption <- make_kable_caption(iter_dir)
+
+LL_comparison_tables <- render_LL_comparison_tables(
+  MLE_data = MLE_data,
+  conf_ints = conf_ints,
+  psi_0 = psi_0
+  )
+
+spline_models <- get_spline_models(LL_df_long)
+
+pseudolikelihoods <- get_pseudolikelihoods(spline_models, MLE_data)
+
+stat_fns <- get_stat_fns(pseudolikelihoods, LL_df)
+
+LL_comparison_plot <- get_LL_comparison_plot(
+  stat_fns = stat_fns,
+  LL_df_long = LL_df_long,
+  MLE_data = MLE_data,
+  alpha_levels = alpha_levels,
+  psi_0 = psi_0
+  )
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, dpi=300}
+LL_comparison_plot
+IL_plot
+PL_plot
+IL_branches_plot
+LL_comparison_tables$MLEs
+LL_comparison_tables$CIs
+```

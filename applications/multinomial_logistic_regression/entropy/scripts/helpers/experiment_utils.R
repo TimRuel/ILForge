@@ -566,23 +566,12 @@ get_profile_LL <- function(config, X_design, model_df) {
 
 get_report_objects <- function(iter_dir) {
   
-  data_dir <- here(iter_dir, "data")
   results_dir <- here(iter_dir, "results")
   config_path <- here(iter_dir, "config_snapshot.yml")
   config <- read_yaml(config_path)
-  exp_id <- config$experiment$id
-  true_params_dir <- here("experiments", exp_id, "true_params")
-  
+
   integrated_LL <- readRDS(here(results_dir, "integrated_LL.rds"))
   profile_LL <- readRDS(here(results_dir, "profile_LL.rds"))
-  
-  X1_levels <- config$X1_levels
-  
-  H_0 <- readRDS(here(true_params_dir, "H_0.rds"))
-  h <- get_X1_level_of_interest(X1_levels)
-  psi_0 <- H_0 |>
-    filter(X1 == h) |>
-    pull(entropy)
   
   LL_df <- integrated_LL$log_L_bar_df |>
     merge(profile_LL, all = TRUE)

@@ -8,8 +8,9 @@ suppressPackageStartupMessages({
   library(yaml)
   library(fs)
   library(doFuture)
-  library(PolytomousUtils)
-})
+  library(foreach)
+  library(nloptr)
+  })
 
 # -------------------------------
 # ✅ Anchor project root
@@ -64,21 +65,19 @@ dir_create(results_dir)
 # ✅ Run integrated likelihood
 # -------------------------------
 if (!skip_integrated) {
+  
   message("🔍 Running integrated likelihood...")
   il_start <- Sys.time()
-  
   num_workers <- config$optimization_specs$IL$num_workers
   plan_strategy <- if (.Platform$OS.type == "unix") multicore else multisession
   plan(plan_strategy, workers = I(num_workers))
-  
   integrated_LL <- get_integrated_LL(config, model_df)
   plan(sequential)
-  
   saveRDS(integrated_LL, file = here(results_dir, "integrated_LL.rds"))
-  
   il_end <- Sys.time()
   message(sprintf("✅ Integrated likelihood complete (%.2f min)", as.numeric(difftime(il_end, il_start, units = "mins"))))
 } else {
+  
   message("⏭️  Skipping integrated likelihood.")
 }
 

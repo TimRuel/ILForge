@@ -9,7 +9,6 @@ suppressPackageStartupMessages({
   library(quarto)
   library(yaml)
   library(fs)
-  library(Rcpp)
   library(nloptr)
 })
 
