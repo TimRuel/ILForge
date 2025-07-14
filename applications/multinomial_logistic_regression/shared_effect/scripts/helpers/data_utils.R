@@ -11,50 +11,53 @@ generate_data <- function(config, theta_0) {
   n <- config$data_generation$n_obs
   model <- config$model
   num_classes <- model$response$num_classes
-  num_effects <- model$response$num_effects
   ref_class <- model$response$reference_class
+  num_effects <- num_classes - 1
   
-  # Shared predictor
-  dist <- model$predictors$shared$distribution
-  if (dist$type == "normal") {
-    Z <- rnorm(n, mean = dist$parameters$mean, sd = dist$parameters$sd)
-  } else {
-    stop("Unsupported distribution type for shared predictor: ", dist$type)
-  }
+  # Shared predictor (Z)
+  shared <- model$predictors$shared
+  Z_dist <- shared$observations
+  Z_args <- Z_dist$parameters
+  Z_args$n <- n
+  Z <- do.call(Z_dist$distribution, Z_args)
   
-  # Class-specific predictors
-  # Generate each class-specific predictor as a vector of length n
-  X_list <- list(Intercept = rep(1, n))  # Intercept row is all 1s
+  # Class-specific predictors (X-)
+  X_list <- list(Intercept = rep(1, n))
   for (pred in model$predictors$class_specific) {
-    dist <- pred$distribution
-    name <- pred$name
-    if (dist$type == "normal") {
-      x <- rnorm(n, mean = dist$parameters$mean, sd = dist$parameters$sd)
-    } else {
-      stop("Unsupported distribution type for class-specific predictor: ", dist$type)
-    }
-    X_list[[name]] <- x
+    dist_fn <- pred$observations$distribution
+    dist_args <- pred$observations$parameters
+    dist_args$n <- n
+    X_list[[pred$name]] <- do.call(dist_fn, dist_args)
   }
-
+  
+  # Construct design matrix (includes intercept)
   X <- do.call(cbind, X_list)
   
+  # Pull true parameters
   psi_0 <- theta_0$psi_0
   Beta_0 <- theta_0$Beta_0
   
+  # Linear predictor for each class (excluding reference)
   eta <- get_eta(Z, X, psi_0, Beta_0)
   
-  eta_full <- cbind(eta, rep(0, n))  
+  # Expand to full K-class system with reference category
+  eta_full <- cbind(eta, rep(0, n))  # last column = baseline class
+  
+  # Convert logits to probabilities
   Y_probs <- softmax(eta_full)
   
+  # Sample Y using probabilities
   Y_numeric <- apply(Y_probs, 1, function(p) sample(1:num_classes, 1, prob = p))
   Y_factor <- factor(Y_numeric, levels = 1:num_classes)
   
-  model_df <- as.data.frame(X_list[-which(names(X_list) == "Intercept")])
-  model_df$Z <- Z
-  model_df$Y <- Y_factor
+  # Create dataframe with predictors + Y (exclude Intercept from model_df)
+  model_df <- as.data.frame(X_list[names(X_list) != "Intercept"])
+  model_df[[shared$name]] <- Z
+  model_df[[model$response$name]] <- Y_factor
   
-  return(list(
-    model_df = model_df,
-    Y_probs = Y_probs
-  ))
+  data <- list(model_df = model_df,
+               Y_probs = Y_probs)
+  
+  return(data)
 }
+

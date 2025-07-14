@@ -15,7 +15,7 @@ get_spline_models <- function(LL_df_long) {
   LL_df_long |>
     drop_na(value) |>
     group_by(pseudolikelihood) |>
-    group_map(~ smooth.spline(.x$psi, .x$value, spar = 0.3)) |>
+    group_map(~ smooth.spline(.x$psi, .x$value)) |>
     set_names(levels(LL_df_long$pseudolikelihood))
 }
 

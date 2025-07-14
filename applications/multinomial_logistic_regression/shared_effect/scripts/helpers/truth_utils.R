@@ -1,34 +1,37 @@
 # applications/multinomial_logistic_regression/shared_effect/scripts/helpers/truth_utils.R
 
-get_Beta_0 <- function(config) {
+generate_true_parameters <- function(config) {
   
-  model <- config$model
-  num_effects <- model$response$num_effects
+  set.seed(config$data_generation$seed)
   
-  # Initialize list to hold rows of Beta
-  beta_rows <- list()
-  row_names <- c()
+  J <- config$model$response$num_classes
+  num_effects <- J - 1
   
-  # Intercepts
-  intercepts <- model$intercepts
-  stopifnot(length(intercepts) == num_effects)
-  beta_rows[["Intercept"]] <- intercepts
+  # Generate intercepts
+  intercept_dist <- config$model$intercepts$distribution
+  intercept_args <- config$model$intercepts$parameters
+  intercept_args$n <- num_effects
+  intercepts <- list("(Intercepts)" = do.call(intercept_dist, intercept_args))
   
-  # Class-specific predictors
-  for (pred in model$predictors$class_specific) {
-    name <- pred$name
-    effects <- pred$effects
-    stopifnot(length(effects) == num_effects)
-    beta_rows[[name]] <- effects
+  # Read shared effect (psi_0)
+  shared_effect <- config$model$predictors$shared$effect
+  
+  # Generate class-specific effects
+  class_effects <- list()
+  for (pred in config$model$predictors$class_specific) {
+    dist_fn <- pred$effects$distribution
+    dist_args <- pred$effects$parameters
+    dist_args$n <- num_effects
+    vec <- do.call(dist_fn, dist_args)
+    class_effects[[pred$name]] <- vec
   }
   
-  # Combine into matrix
-  Beta_0 <- do.call(rbind, beta_rows)
-  colnames(Beta_0) <- paste0("Class", seq_len(num_effects))
-  rownames(Beta_0) <- names(beta_rows)
+  # Combine into Beta_0 matrix
+  Beta_0 <- do.call(rbind, c(intercepts, class_effects)) |> 
+    round(2)
+  colnames(Beta_0) <- paste0("Y", seq_len(num_effects))
   
-  return(Beta_0)
+  list(psi_0 = shared_effect, Beta_0 = Beta_0)
 }
 
-get_psi_0 <- function(config) config$model$predictors$shared$effect
 

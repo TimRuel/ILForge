@@ -21,7 +21,7 @@ get_Beta_MLE <- function(model) {
   
   Beta_MLE <- do.call(rbind, list(intercepts, X_coefs))
   
-  colnames(Beta_MLE) <- paste0("Class", seq_len(Jm1))
+  colnames(Beta_MLE) <- paste0("Y", seq_len(Jm1))
   rownames(Beta_MLE) <- c("Intercept", paste0("X", 1:nrow(X_coefs)))
   
   return(Beta_MLE)
@@ -392,7 +392,9 @@ get_integrated_LL <- function(config, model_df) {
   
   invisible(list2env(config$optimization_specs$IL, env = environment()))
   
-  num_effects <- config$model$response$num_effects
+  num_classes <- config$model$response$num_classes
+  
+  num_effects <- num_classes - 1
   
   reference_class <- config$model$response$reference_class
   
@@ -563,7 +565,9 @@ get_profile_LL <- function(config, model_df) {
   
   invisible(list2env(config$optimization_specs$PL, environment()))
   
-  num_effects <- config$model$response$num_effects
+  num_classes <- config$model$response$num_classes
+  
+  num_effects <- num_classes - 1
   
   reference_class <- config$model$response$reference_class
   

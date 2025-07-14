@@ -51,8 +51,6 @@ exp_config <- read_yaml(config_path)
 # -------------------------------
 # ✅ Generate parameters
 # -------------------------------
-Beta_0 <- get_Beta_0(exp_config)
-psi_0 <- get_psi_0(exp_config)
-theta_0 <- list(psi_0 = psi_0, Beta_0 = Beta_0)
+theta_0 <- generate_true_parameters(exp_config)
 saveRDS(theta_0, here(true_params_dir, "theta_0.rds"))
 message("[✓] Saved theta_0 to: ", true_params_dir)
