@@ -1,0 +1,33 @@
+experiment:
+  app: poisson_regression
+  estimand: weighted_sum
+  id: ~
+  sim_id: ~
+  iter_id: ~
+
+seed: 2685
+
+design_matrix:
+  n_obs: 100
+  n_covariates: 3
+  intercept: true
+  covariates:
+    - name: X1
+      distribution: rnorm
+      args: [0, 1]
+    - name: X2
+      distribution: runif
+      args: [0, 5]
+    - name: X3
+      distribution: rbinom
+      args: [1, 0.4]
+
+beta:
+  distribution: rnorm
+  args: [0, 1]
+
+weights:
+  distribution: runif
+  args: [1, 10]
+  # normalize_sum_to: 100
+  normalize_mean_to: 1.0  # (choose one or the other)
