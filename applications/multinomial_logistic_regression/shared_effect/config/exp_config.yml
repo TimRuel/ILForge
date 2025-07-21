@@ -9,6 +9,8 @@ data_generation:
   seed: 1996
   n_obs: 200
   validate_only: false
+  min_prop: 0.05
+  max_tries: 100
 
 model:
   response:
@@ -47,10 +49,10 @@ model:
 
       - name: X2
         effects:
-          distribution: runif
+          distribution: rnorm
           parameters:
-            min: -3
-            max: 3
+            mean: -0.5
+            sd: 1
         observations:
           distribution: runif
           parameters:
@@ -61,8 +63,8 @@ model:
         effects:
           distribution: rnorm
           parameters:
-            mean: 2
-            sd: 3
+            mean: 1
+            sd: 2
         observations:
           distribution: rnorm
           parameters:
@@ -73,8 +75,8 @@ model:
         effects:
           distribution: rnorm
           parameters:
-            mean: -5
-            sd: 2
+            mean: -1
+            sd: 1
         observations:
           distribution: rnorm
           parameters:

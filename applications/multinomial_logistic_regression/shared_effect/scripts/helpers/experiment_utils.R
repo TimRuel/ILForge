@@ -656,7 +656,7 @@ get_report_objects <- function(iter_dir) {
   
   alpha_levels <- config$optimization_specs$PL$alpha_levels
   
-  J <- config$model$num_classes
+  J <- config$model$response$num_classes
   
   conf_ints <- get_confidence_intervals(
     pseudolikelihoods = pseudolikelihoods,

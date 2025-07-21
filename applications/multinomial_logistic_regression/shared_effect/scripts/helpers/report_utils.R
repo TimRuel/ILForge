@@ -79,21 +79,21 @@ get_confidence_intervals <- function(pseudolikelihoods,
         lower_bound <- tryCatch(
           uniroot(\(psi) pseudolikelihood(psi) + crit,
                   interval = c(psi_endpoints[1], MLE))$root,
-          error = function(e) return(0)
-        ) |> round(3)
+          error = function(e) return(NA_real_)
+        )
         
         upper_bound <- tryCatch( 
           uniroot(\(psi) pseudolikelihood(psi) + crit,
                   interval = c(MLE, psi_endpoints[2]))$root,
-          error = function(e) return(log(J))
-        ) |> round(3)
+          error = function(e) return(NA_real_)
+        )
         
         tibble(
           pseudolikelihood = name,
           confidence = conf_label,
           alpha = alpha,
-          lower = lower_bound,
-          upper = upper_bound
+          lower = round(lower_bound, 3),
+          upper = round(upper_bound, 3)
         )
       })
     }
@@ -219,16 +219,22 @@ summarize_confidence_intervals <- function(ci_list, true_value) {
   
   combined <- bind_rows(ci_list, .id = "source_id")
   
-  # Add a coverage indicator
+  # Add a coverage indicator (only if bounds are not NA)
   combined <- combined |>
-    mutate(covers_true = lower <= true_value & upper >= true_value)
+    mutate(
+      valid = !is.na(lower) & !is.na(upper),
+      covers_true = valid & (lower <= true_value & upper >= true_value)
+    )
   
-  # Group and summarize
   summary_df <- combined |>
     group_by(pseudolikelihood, confidence) |>
     summarise(
-      length = mean(upper - lower),
-      coverage_rate = mean(covers_true),
+      mean_length = mean(upper - lower, na.rm = TRUE),
+      coverage_rate = mean(covers_true, na.rm = TRUE),
+      n_total = n(),
+      n_failed = sum(!valid),
+      n_valid = sum(valid),
+      worst_case_coverage = mean(covers_true, na.rm = TRUE) * (n_valid / n_total),
       .groups = "drop"
     )
   

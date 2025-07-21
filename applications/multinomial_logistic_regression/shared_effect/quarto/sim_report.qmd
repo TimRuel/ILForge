@@ -6,8 +6,8 @@ format:
 params:
   sim_id: null
   experiment: null
-  X1_levels: null
-  model_specs: null
+  data_generation: null
+  model: null
   optimization_specs: null
 ---
 
@@ -47,25 +47,48 @@ miceadds::source.all(common_helpers_dir, print.source = FALSE)
 
 ```{r}
 #| include: false
-H_0 <- readRDS(file.path(true_params_dir, "H_0.rds"))
-h <- get_X1_level_of_interest(X1_levels)
-psi_0 <- H_0 |>
-  filter(X1 == h) |>
-  pull(entropy)
+theta_0 <- readRDS(file.path(true_params_dir, "theta_0.rds"))
+psi_0 <- theta_0$psi_0
 ```
 
 ```{r}
 #| include: false
-MLE_data_list <- iter_dirs |>
-  map(\(iter_dir) readRDS(file.path(iter_dir, "results", "MLE_data.rds")))
+skipped_dirs <- iter_dirs |>
+  keep(~ {
+    is_empty <- length(list.files(.x, recursive = TRUE)) == 0
+    missing_file <- !file.exists(file.path(.x, "results", "MLE_data.rds"))
+    is_empty || missing_file
+  })
+
+# Count of skipped directories
+num_skipped_MLE <- length(skipped_dirs)
+
+# Proceed with the valid ones
+MLE_data_list <- setdiff(iter_dirs, skipped_dirs) |>
+  map(\(iter_dir) {
+    readRDS(file.path(iter_dir, "results", "MLE_data.rds"))
+  })
 
 mle_summary_df <- summarize_mle_performance(MLE_data_list, psi_0)
 ```
 
 ```{r}
 #| include: false
-conf_ints_list <- iter_dirs |>
-  map(\(iter_dir) readRDS(file.path(iter_dir, "results", "conf_ints.rds")))
+skipped_dirs <- iter_dirs |>
+  keep(~ {
+    is_empty <- length(list.files(.x, recursive = TRUE)) == 0
+    missing_file <- !file.exists(file.path(.x, "results", "conf_ints.rds"))
+    is_empty || missing_file
+  })
+
+# Count of skipped directories
+num_skipped_CI <- length(skipped_dirs)
+
+# Proceed with the valid ones
+conf_ints_list <- setdiff(iter_dirs, skipped_dirs) |>
+  map(\(iter_dir) {
+    readRDS(file.path(iter_dir, "results", "conf_ints.rds"))
+  })
 
 ci_summary_df <- summarize_confidence_intervals(conf_ints_list, psi_0)
 ```
@@ -75,9 +98,12 @@ ci_summary_df <- summarize_confidence_intervals(conf_ints_list, psi_0)
 subtitle <- paste("Experiment", exp_id, "— Simulation", sim_id)
 header <- paste("##", subtitle)
 cat(header)
-cat(paste("\nLevel of Interest:", h))
 cat("\n")
-cat(paste("\nTrue Entropy:", round(psi_0, 3)))
+cat(paste("True Entropy:", round(psi_0, 3)))
+cat("\n\n")
+cat(paste("Number of Skipped Directories for MLE:", num_skipped_MLE))
+cat("\n\n")
+cat(paste("Number of Skipped Directories for CI:", num_skipped_CI))
 ```
 
 ```{r}
@@ -95,7 +121,7 @@ ci_rows <- ci_summary_df |>
   mutate(
     Level = confidence,
     Coverage = coverage_rate,
-    Length = length,
+    Length = mean_length
   ) |>
   select(Method = pseudolikelihood, Level, Coverage, Length) |>
   pivot_longer(cols = c(Coverage, Length), names_to = "Metric", values_to = "Value") |>

@@ -71,37 +71,47 @@ LL_df_long <- get_LL_df_long(LL_df)
 
 alpha_levels <- unlist(optimization_specs$PL$alpha_levels)
 
-MLE_data <- readRDS(file.path(results_dir, "MLE_data.rds"))
-conf_ints <- readRDS(file.path(results_dir, "conf_ints.rds"))
+# Check for required files before proceeding
+MLE_path <- file.path(results_dir, "MLE_data.rds")
+CI_path <- file.path(results_dir, "conf_ints.rds")
 
-caption <- make_kable_caption(iter_dir)
+if (file.exists(MLE_path) && file.exists(CI_path)) {
+  MLE_data <- readRDS(MLE_path)
+  conf_ints <- readRDS(CI_path)
 
-LL_comparison_tables <- render_LL_comparison_tables(
-  MLE_data = MLE_data,
-  conf_ints = conf_ints,
-  psi_0 = psi_0
+  caption <- make_kable_caption(iter_dir)
+
+  LL_comparison_tables <- render_LL_comparison_tables(
+    MLE_data = MLE_data,
+    conf_ints = conf_ints,
+    psi_0 = psi_0
   )
 
-spline_models <- get_spline_models(LL_df_long)
+  spline_models <- get_spline_models(LL_df_long)
 
-pseudolikelihoods <- get_pseudolikelihoods(spline_models, MLE_data)
+  pseudolikelihoods <- get_pseudolikelihoods(spline_models, MLE_data)
 
-stat_fns <- get_stat_fns(pseudolikelihoods, LL_df)
+  stat_fns <- get_stat_fns(pseudolikelihoods, LL_df)
 
-LL_comparison_plot <- get_LL_comparison_plot(
-  stat_fns = stat_fns,
-  LL_df_long = LL_df_long,
-  MLE_data = MLE_data,
-  alpha_levels = alpha_levels,
-  psi_0 = psi_0
+  LL_comparison_plot <- get_LL_comparison_plot(
+    stat_fns = stat_fns,
+    LL_df_long = LL_df_long,
+    MLE_data = MLE_data,
+    alpha_levels = alpha_levels,
+    psi_0 = psi_0
   )
+}
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, dpi=300}
-LL_comparison_plot
-IL_plot
-PL_plot
-IL_branches_plot
-LL_comparison_tables$MLEs
-LL_comparison_tables$CIs
+# Only print if they were created
+if (exists("LL_comparison_plot")) print(LL_comparison_plot)
+print(IL_plot)
+print(PL_plot)
+print(IL_branches_plot)
+if (exists("LL_comparison_tables")) {
+  LL_comparison_tables$MLEs
+  LL_comparison_tables$CIs
+}
 ```
+

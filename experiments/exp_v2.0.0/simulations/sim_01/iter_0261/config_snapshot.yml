@@ -1,0 +1,108 @@
+experiment:
+  app: multinomial_logistic_regression
+  estimand: shared_effect
+  id: exp_v2.0.0
+  sim_id: sim_01
+  iter_id: iter_0261
+data_generation:
+  seed: 1996
+  n_obs: 200
+  validate_only: false
+  min_prop: 0.05
+  max_tries: 100
+model:
+  response:
+    name: 'Y'
+    num_classes: 6
+    reference_class: 6
+  intercepts:
+    distribution: rnorm
+    parameters:
+      mean: 0
+      sd: 0.5
+  predictors:
+    shared:
+      name: Z
+      effect: 1.2
+      observations:
+        distribution: rnorm
+        parameters:
+          mean: 0
+          sd: 1
+    class_specific:
+    - name: X1
+      effects:
+        distribution: rnorm
+        parameters:
+          mean: 0.5
+          sd: 0.1
+      observations:
+        distribution: rnorm
+        parameters:
+          mean: 0
+          sd: 1
+    - name: X2
+      effects:
+        distribution: rnorm
+        parameters:
+          mean: -0.5
+          sd: 1
+      observations:
+        distribution: runif
+        parameters:
+          min: -2
+          max: 2
+    - name: X3
+      effects:
+        distribution: rnorm
+        parameters:
+          mean: 1
+          sd: 2
+      observations:
+        distribution: rnorm
+        parameters:
+          mean: 0
+          sd: 0.5
+    - name: X4
+      effects:
+        distribution: rnorm
+        parameters:
+          mean: -1
+          sd: 1
+      observations:
+        distribution: rnorm
+        parameters:
+          mean: 0
+          sd: 1
+    - name: X5
+      effects:
+        distribution: rnorm
+        parameters:
+          mean: 0
+          sd: 1
+      observations:
+        distribution: rnorm
+        parameters:
+          mean: 2
+          sd: 0.5
+  formula: Y ~ Z + X1 + X2 + X3 + X4 + X5
+optimization_specs:
+  IL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    num_std_errors:
+    - -3
+    - 3
+    chunk_size: 4
+    max_cores: 128
+    num_workers: 64
+  PL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    alpha_levels:
+    - 0.1
+    - 0.05
+    - 0.01
+
