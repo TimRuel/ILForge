@@ -6,17 +6,17 @@ experiment:
   iter_id: ~
 
 data_generation:
-  seed: 1996
-  n_obs: 200
+  seed: 6349
+  n_obs: 150
   validate_only: false
-  min_prop: 0.05
+  min_obs: 5
   max_tries: 100
 
 model:
   response:
     name: "Y"
-    num_classes: 6
-    reference_class: 6
+    num_classes: 7
+    reference_class: 7
   
   intercepts:
     distribution: rnorm
@@ -27,12 +27,12 @@ model:
   predictors:
     shared:
         name: Z
-        effect: 1.2
+        effect: 0.5
         observations:
           distribution: rnorm
           parameters:
             mean: 0
-            sd: 1
+            sd: 2
 
     class_specific:
       - name: X1
@@ -69,7 +69,7 @@ model:
           distribution: rnorm
           parameters:
             mean: 0
-            sd: 0.5
+            sd: 1.5
 
       - name: X4
         effects:
@@ -92,7 +92,8 @@ model:
         observations:
           distribution: rnorm
           parameters:
-            mean: 2
-            sd: 0.5
+            mean: 0
+            sd: 1
 
   formula: "Y ~ Z + X1 + X2 + X3 + X4 + X5"
+
