@@ -24,7 +24,7 @@ exp_id <- args[1]
 # -------------------------------
 # ✅ Paths
 # -------------------------------
-estimand_helpers_dir <- here("applications", "multinomial_logistic_regression", "entropy", "scripts", "helpers")
+estimand_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
 common_helpers_dir  <- here("common", "scripts", "helpers")
 config_path <- here("config", "exps", paste0(exp_id, ".yml"))
 true_params_dir <- here("experiments", exp_id, "true_params")

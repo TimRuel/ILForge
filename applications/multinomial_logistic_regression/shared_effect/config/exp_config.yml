@@ -7,7 +7,7 @@ experiment:
 
 data_generation:
   seed: 6349
-  n_obs: 150
+  n_obs: 100
   validate_only: false
   min_obs: 5
   max_tries: 100
@@ -94,6 +94,19 @@ model:
           parameters:
             mean: 0
             sd: 1
+            
+    interactions:
+      - name: "X1:X2"
+        effects:
+          distribution: rnorm
+          parameters:
+            mean: 0.2
+            sd: 0.05
+      - name: "X3:X4"
+        effects:
+          distribution: rnorm
+          parameters:
+            mean: -0.1
+            sd: 0.1
 
-  formula: "Y ~ Z + X1 + X2 + X3 + X4 + X5"
-
+  formula: "Y ~ Z + X1 + X2 + X1:X2"
