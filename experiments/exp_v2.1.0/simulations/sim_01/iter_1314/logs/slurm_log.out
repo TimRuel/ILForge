@@ -1,0 +1,224 @@
+📌 Logging to experiments/exp_v2.1.0/simulations/sim_01/iter_1314/logs/slurm_log.out
+🔁 Running Iteration 1314 of Simulation sim_01 in Experiment exp_v2.1.0 (multinomial_logistic_regression / shared_effect) with 64 cores...
+[INFO] True parameters already exist — skipping generation.
+Generating data...
+[INFO] Loading theta_0 from: /gpfs/home/tbr0780/ILForge/experiments/exp_v2.1.0/true_params/theta_0.rds
+[INFO] Generating new data for iteration: iter_1314
+✅ Balanced dataset generated on try 2
+[✓] Saved config snapshot to: /gpfs/home/tbr0780/ILForge/experiments/exp_v2.1.0/simulations/sim_01/iter_1314/config_snapshot.yml
+Executing iteration...
+🔍 Running integrated likelihood...
+✅ Integrated likelihood complete (0.52 min)
+📈 Running profile likelihood...
+✅ Profile likelihood complete (0.32 min)
+⏱️  Total experiment time: 0.86 minutes
+✓ Experiment results saved to /experiments/exp_v2.1.0/simulations/sim_01/iter_1314/results
+✓ Iteration completed
+✅ SLURM iteration complete: iter_1314
+===== FINAL DIAGNOSTICS for Job 9903114 =====
+Job ID: 9903114
+Array Job ID: 9900632_1313
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 02:52:48 core-walltime
+Job Wall-clock time: 00:02:42
+Memory Utilized: 0.00 MB (estimated maximum)
+Memory Efficiency: 0.00% of 31.25 GB (500.00 MB/core)
+WARNING: Efficiency statistics may be misleading for RUNNING jobs.
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=9903114 ArrayJobId=9900632 ArrayTaskId=1313 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=20165 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:02:45 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-07-25T19:18:16 EligibleTime=2025-07-25T19:18:19
+   AccrueTime=2025-07-25T19:18:19
+   StartTime=2025-07-25T20:00:20 EndTime=2025-07-25T22:00:20 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-07-25T20:00:20 Scheduler=Main
+   Partition=short AllocNode:Sid=quser32:3020972
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3054
+   BatchHost=qnode3054
+   NumNodes=1 NumCPUs=64 NumTasks=64 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=32000M,node=1,billing=288
+   AllocTRES=cpu=64,mem=32000M,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=64:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryCPU=500M MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job efficiency will be calculated after the job has completed.
+JobID                     JobName    Elapsed     MaxRSS     ReqMem  AllocCPUS      State 
+------------ -------------------- ---------- ---------- ---------- ---------- ---------- 
+9900632_1313       experiment_sim   00:02:45                32000M         64    RUNNING 
+9900632_131+                batch   00:02:45                               64    RUNNING 
+9900632_131+               extern   00:02:45                               64    RUNNING 
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        44Gi       450Gi       6.8Gi       8.5Gi       447Gi
+Swap:          31Gi       205Mi        31Gi
+ 20:03:05 up 124 days, 23:17,  0 users,  load average: 30.19, 20.35, 22.73
+top - 20:03:05 up 124 days, 23:17,  0 users,  load average: 30.19, 20.35, 22.73
+Tasks: 1327 total,  65 running, 1262 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 49.6 us,  0.4 sy,  0.0 ni, 49.8 id,  0.0 wa,  0.2 hi,  0.0 si,  0.0 st
+MiB Mem : 515584.8 total, 461642.2 free,  45210.1 used,   8732.4 buff/cache
+MiB Swap:  32768.0 total,  32562.1 free,    205.9 used. 458525.8 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+4086511 tbr0780   20   0  637796 341732  13228 R 100.0   0.1   0:12.31 R
+4086515 tbr0780   20   0  642864 346788  13228 R 100.0   0.1   0:12.28 R
+4086516 tbr0780   20   0  644204 348052  13228 R 100.0   0.1   0:12.27 R
+4086520 tbr0780   20   0  649352 353240  13228 R 100.0   0.1   0:12.23 R
+4086522 tbr0780   20   0  651960 355864  13228 R 100.0   0.1   0:12.21 R
+4086523 tbr0780   20   0  653336 357196  13228 R 100.0   0.1   0:12.20 R
+4086524 tbr0780   20   0  654632 358512  13228 R 100.0   0.1   0:12.19 R
+4086525 tbr0780   20   0  655896 359840  13228 R 100.0   0.1   0:12.18 R
+4086530 tbr0780   20   0  662628 366592  13228 R 100.0   0.1   0:12.13 R
+4086539 tbr0780   20   0  658252 362224  13228 R 100.0   0.1   0:12.03 R
+4086541 tbr0780   20   0  663528 367496  13228 R 100.0   0.1   0:12.00 R
+4086543 tbr0780   20   0  658068 362040  13228 R 100.0   0.1   0:11.98 R
+4086547 tbr0780   20   0  663656 367556  13228 R 100.0   0.1   0:11.94 R
+4086550 tbr0780   20   0  663656 367584  13228 R 100.0   0.1   0:11.91 R
+4086566 tbr0780   20   0  664072 367976  13228 R 100.0   0.1   0:11.73 R
+4086567 tbr0780   20   0  664060 368004  13228 R 100.0   0.1   0:11.71 R
+4086507 tbr0780   20   0  631768 335700  13228 R  94.1   0.1   0:12.34 R
+4086508 tbr0780   20   0  634124 338056  13228 R  94.1   0.1   0:12.33 R
+4086509 tbr0780   20   0  635304 339268  13228 R  94.1   0.1   0:12.33 R
+4086510 tbr0780   20   0  636620 340496  13228 R  94.1   0.1   0:12.32 R
+4086512 tbr0780   20   0  639020 342976  13228 R  94.1   0.1   0:12.30 R
+4086513 tbr0780   20   0  640300 344236  13228 R  94.1   0.1   0:12.29 R
+4086514 tbr0780   20   0  641616 345524  13228 R  94.1   0.1   0:12.28 R
+4086517 tbr0780   20   0  645484 349340  13228 R  94.1   0.1   0:12.25 R
+4086518 tbr0780   20   0  646736 350636  13228 R  94.1   0.1   0:12.25 R
+4086519 tbr0780   20   0  648000 351940  13228 R  94.1   0.1   0:12.23 R
+4086521 tbr0780   20   0  650688 354548  13228 R  94.1   0.1   0:12.21 R
+4086526 tbr0780   20   0  657276 361184  13228 R  94.1   0.1   0:12.17 R
+4086527 tbr0780   20   0  658576 362516  13228 R  94.1   0.1   0:12.16 R
+4086528 tbr0780   20   0  659948 363868  13228 R  94.1   0.1   0:12.15 R
+4086529 tbr0780   20   0  661292 365236  13228 R  94.1   0.1   0:12.14 R
+4086531 tbr0780   20   0  659336 363308  13228 R  94.1   0.1   0:12.12 R
+4086532 tbr0780   20   0  663808 367708  13228 R  94.1   0.1   0:12.11 R
+===== BACKGROUND CHECKJOB MONITOR LOG =====
+===== checkjob (interval) at Fri Jul 25 20:01:58 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=9903114 ArrayJobId=9900632 ArrayTaskId=1313 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=20165 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:01:38 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-07-25T19:18:16 EligibleTime=2025-07-25T19:18:19
+   AccrueTime=2025-07-25T19:18:19
+   StartTime=2025-07-25T20:00:20 EndTime=2025-07-25T22:00:20 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-07-25T20:00:20 Scheduler=Main
+   Partition=short AllocNode:Sid=quser32:3020972
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3054
+   BatchHost=qnode3054
+   NumNodes=1 NumCPUs=64 NumTasks=64 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=32000M,node=1,billing=288
+   AllocTRES=cpu=64,mem=32000M,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=64:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryCPU=500M MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job efficiency will be calculated after the job has completed.
+===== checkjob (interval) at Fri Jul 25 20:02:29 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=9903114 ArrayJobId=9900632 ArrayTaskId=1313 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=20165 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:02:09 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-07-25T19:18:16 EligibleTime=2025-07-25T19:18:19
+   AccrueTime=2025-07-25T19:18:19
+   StartTime=2025-07-25T20:00:20 EndTime=2025-07-25T22:00:20 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-07-25T20:00:20 Scheduler=Main
+   Partition=short AllocNode:Sid=quser32:3020972
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3054
+   BatchHost=qnode3054
+   NumNodes=1 NumCPUs=64 NumTasks=64 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=32000M,node=1,billing=288
+   AllocTRES=cpu=64,mem=32000M,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=64:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryCPU=500M MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job efficiency will be calculated after the job has completed.
+===== checkjob (interval) at Fri Jul 25 20:03:00 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=9903114 ArrayJobId=9900632 ArrayTaskId=1313 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=20165 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:02:42 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-07-25T19:18:16 EligibleTime=2025-07-25T19:18:19
+   AccrueTime=2025-07-25T19:18:19
+   StartTime=2025-07-25T20:00:20 EndTime=2025-07-25T22:00:20 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-07-25T20:00:20 Scheduler=Main
+   Partition=short AllocNode:Sid=quser32:3020972
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3054
+   BatchHost=qnode3054
+   NumNodes=1 NumCPUs=64 NumTasks=64 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=32000M,node=1,billing=288
+   AllocTRES=cpu=64,mem=32000M,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=64:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryCPU=500M MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job efficiency will be calculated after the job has completed.
