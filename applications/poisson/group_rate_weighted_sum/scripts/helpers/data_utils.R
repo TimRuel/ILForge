@@ -38,7 +38,13 @@ generate_data <- function(config, Beta_0, covariates) {
                  t = t,
                  Y = Y) |> 
     bind_cols(as_tibble(X)) |>
-    select(group, t, starts_with("X"), Y)
+    # group_by(group) |>
+    # summarise(
+    #   Y = sum(Y),
+    #   t = sum(t),
+    #   across(starts_with("X"), first)
+    # ) |> 
+    select(group, starts_with("X"), t, Y)
   
   return(data)
 }

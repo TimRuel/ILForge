@@ -6,7 +6,7 @@
 get_coef_names <- function(covariates, has_intercept) {
   
   names <- c()
-  if (has_intercept) names <- c(names, "intercept")
+  if (has_intercept) names <- c(names, "Intercept")
   if (length(covariates) > 0) names <- c(names, paste0("X", seq_along(covariates)))
   names
 }
