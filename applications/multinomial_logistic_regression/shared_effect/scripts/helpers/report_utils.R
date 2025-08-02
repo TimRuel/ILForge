@@ -217,28 +217,18 @@ get_ci_colors <- function(crit_df) {
 
 summarize_confidence_intervals <- function(ci_list, true_value) {
   
-  combined <- bind_rows(ci_list, .id = "source_id")
-  
-  # Add a coverage indicator (only if bounds are not NA)
-  combined <- combined |>
-    mutate(
-      valid = !is.na(lower) & !is.na(upper),
-      covers_true = valid & (lower <= true_value & upper >= true_value)
-    )
-  
-  summary_df <- combined |>
+  ci_list |> 
+    bind_rows(.id = "source_id") |> 
+    mutate(valid = !is.na(lower) & !is.na(upper),
+           covers_true = lower <= true_value & upper >= true_value,
+           width = upper - lower) |> 
     group_by(pseudolikelihood, confidence) |>
     summarise(
-      mean_length = mean(upper - lower, na.rm = TRUE),
+      mean_width = mean(width, na.rm = TRUE),
+      median_width = median(width, na.rm = TRUE),
       coverage_rate = mean(covers_true, na.rm = TRUE),
-      n_total = n(),
-      n_failed = sum(!valid),
-      n_valid = sum(valid),
-      worst_case_coverage = mean(covers_true, na.rm = TRUE) * (n_valid / n_total),
-      .groups = "drop"
-    )
-  
-  return(summary_df)
+      valid_rate = mean(valid),
+      .groups = "drop")
 }
 
 summarize_mle_performance <- function(mle_list, true_value) {
