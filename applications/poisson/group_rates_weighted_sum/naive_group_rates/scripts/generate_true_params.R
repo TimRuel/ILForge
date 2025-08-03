@@ -1,4 +1,4 @@
-# applications/poisson_regression/weighted_sum/scripts/generate_true_params.R
+# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/generate_true_params.R
 
 #!/usr/bin/env Rscript
 
@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-suppressMessages(i_am("applications/poisson_regression/weighted_sum/scripts/generate_true_params.R"))
+suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/generate_true_params.R"))
 
 # -------------------------------
 # ✅ Parse args
@@ -24,33 +24,37 @@ exp_id <- args[1]
 # -------------------------------
 # ✅ Paths
 # -------------------------------
-estimand_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
+model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "naive_group_rates", "scripts", "helpers")
 common_helpers_dir  <- here("common", "scripts", "helpers")
-config_path <- here("config", "exps", paste0(exp_id, ".yml"))
+exp_config_path <- here("config", "exps", paste0(exp_id, ".yml"))
 true_params_dir <- here("experiments", exp_id, "true_params")
 dir_create(true_params_dir)
-if (!file.exists(config_path)) {
-  stop("❌ Config file not found at: ", config_path)
+
+if (!file.exists(exp_config_path)) {
+  stop("❌ Experiment config file not found at: ", exp_config_path)
 }
 
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
-if (dir_exists(estimand_helpers_dir)) {
-  miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+if (dir_exists(model_helpers_dir)) {
+  miceadds::source.all(model_helpers_dir, print.source = FALSE)
 } else {
-  stop("[ERROR] Helper folder not found at ", estimand_helpers_dir)
+  stop("[ERROR] Helper folder not found at ", model_helpers_dir)
 }
 
 # -------------------------------
-# ✅ Load config
+# ✅ Load experiment config
 # -------------------------------
-exp_config <- read_yaml(config_path)
+exp_config <- read_yaml(exp_config_path)
 
 # -------------------------------
 # ✅ Generate parameters
 # -------------------------------
 true_parameters <- generate_true_parameters(exp_config)
+
+# Should return a named list like: list(lambda = ..., weights = ...)
 save_list_objects(true_parameters, true_params_dir)
-message("[✓] Saved Beta_0 and weights to: ", true_params_dir)
+
+message("[✓] Saved true parameters to: ", true_params_dir)

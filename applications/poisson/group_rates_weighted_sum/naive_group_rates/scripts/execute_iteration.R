@@ -1,4 +1,4 @@
-# applications/poisson_regression/weighted_sum/scripts/execute_iteration.R
+# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/execute_iteration.R
 
 #!/usr/bin/env Rscript
 
@@ -15,7 +15,7 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-suppressMessages(i_am("applications/poisson_regression/weighted_sum/scripts/execute_iteration.R"))
+suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/execute_iteration.R"))
 
 # -------------------------------
 # ✅ Parse arguments
@@ -44,7 +44,7 @@ estimand <- config$experiment$estimand
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-estimand_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
+model_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
 common_helpers_dir  <- here("common", "scripts", "helpers")
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
 miceadds::source.all(estimand_helpers_dir, print.source = FALSE)

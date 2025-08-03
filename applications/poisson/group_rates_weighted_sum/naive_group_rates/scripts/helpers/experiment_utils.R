@@ -1,109 +1,65 @@
-# applications/poisson_regression/weighted_sum/scripts/helpers/experiment_utils.R
+# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/helpers/experiment_utils.R
 
 # Miscellaneous -----------------------------------------------------------
 
-fit_model <- function(data, formula) {
+fit_model <- function(data) {
   
-  glm(formula, data = data, family = poisson())
+  glm(Y ~ 0 + group, offset = log(t), family = poisson(), data = data)
 }
 
-get_Beta_MLE <- function(model) {
+get_lambda_MLE_from_model <- function(model) {
   
-  Jm1 <- ncol(model@y) - 1
-  coefs <- coef(model)
-  
-  intercepts <- coefs[startsWith(names(coefs), "(Intercept)")] |> 
-    unname()
-  
-  X_coefs <- coefs[startsWith(names(coefs), "X")] |> 
-    matrix(ncol = Jm1,
-           byrow = TRUE)
-  
-  Beta_MLE <- do.call(rbind, list(intercepts, X_coefs))
-  
-  colnames(Beta_MLE) <- paste0("Y", seq_len(Jm1))
-  rownames(Beta_MLE) <- c("Intercept", paste0("X", 1:nrow(X_coefs)))
-  
-  return(Beta_MLE)
+  model |> 
+    coef() |> 
+    exp() |> 
+    set_names(model$xlevels$group)
 }
 
-get_psi_hat <- function(model) unname(coef(model)["Z"])
-
-get_psi_hat_SE <- function(model) VGAM::summaryvglm(model)@coef3["Z", "Std. Error"]
-
-get_Sigma_hat <- function(model) {
+get_lambda_MLE_from_data <- function(data) {
   
-  vcov_Beta <- vcov(model)
-  
-  Sigma_hat <- vcov_Beta[!rownames(vcov_Beta) %in% "Z", !colnames(vcov_Beta) %in% "Z"]
-  
-  return(Sigma_hat)
+  data |> 
+    reframe(lambda_MLE = Y / t) |> 
+    pull(lambda_MLE) |> 
+    set_names(data$group)
 }
 
-get_constraints <- function(model_df, num_effects, formula) {
-  
-  predictor_names <- formula |> 
-    str_remove("Y ") |> 
-    as.formula() |> 
-    model.matrix(data = model_df) |> 
-    colnames()
-  
-  constraints <- list()
-  
-  for (name in predictor_names) {
+get_lambda_MLE <- function(x) {
+  if (inherits(x, "glm")) {
+    x |>
+      coef() |>
+      exp() |>
+      set_names(x$xlevels$group)
     
-    if (name == "(Intercept)") {
-      
-      constraints[[name]] <- diag(num_effects)
-    } else if (name == "Z") {
-      
-      constraints[[name]] <- matrix(1, nrow = num_effects, ncol = 1)
-    } else {
-      
-      constraints[[name]] <- diag(num_effects)
-    }
+  } else if (is.data.frame(x)) {
+    x |>
+      reframe(lambda_MLE = Y / t) |>
+      pull(lambda_MLE) |>
+      set_names(x$group)
+    
+  } else {
+    stop("Input must be a glm model or a data frame with columns Y, t, and group.")
   }
-  
-  return(constraints)
 }
 
-log_likelihood <- function(X, Y_one_hot, Z, psi, Beta) {
-  
-  eta <- get_eta(Z, X, psi, Beta)
-  sum(rowSums(Y_one_hot * eta) - log(1 + rowSums(exp(eta))))
-}
+get_psi_MLE <- function(lambda_MLE, weights) sum(lambda_MLE * weights)
 
-likelihood <- function(X, Y_one_hot, Z, psi, Beta) exp(log_likelihood(X, Y_one_hot, Z, psi, Beta))
+get_psi_MLE_SE <- function(lambda_MLE, weights, exposure) sqrt(sum(weights^2 * lambda_MLE / exposure))
 
-get_E_Y <- function(X, Z, Beta, psi) {
-  
-  get_eta(Z, X, psi, Beta) |>
-    apply(1, softmax_adj) |>
-    t()
-}
+log_likelihood <- function(lambda, Y, t) sum(Y * log(lambda) - t * lambda)
+
+likelihood <- function(lambda, Y, t) exp(log_likelihood(lambda, Y, t))
 
 # Psi Grid ----------------------------------------------------------------
 
-get_psi_endpoints <- function(model, num_std_errors) {
+get_psi_grid <- function(data, weights, num_std_errors, step_size) {
   
-  Beta_MLE <- get_Beta_MLE(model)
+  lambda_MLE <- get_lambda_MLE(data)
   
-  psi_hat <- get_psi_hat(model)
+  psi_MLE <- get_psi_MLE(lambda_MLE, weights)
   
-  psi_hat_SE <- get_psi_hat_se(model)
+  psi_MLE_SE <- get_psi_MLE_SE(lambda_MLE, weights, data$t)
   
-  psi_endpoints <- psi_hat + num_std_errors * psi_hat_SE
-  
-  return(psi_endpoints)
-}
-
-get_psi_grid <- function(model, num_std_errors, step_size) {
-  
-  psi_hat <- get_psi_hat(model)
-  
-  psi_hat_SE <- get_psi_hat_SE(model)
-  
-  psi_endpoints <- psi_hat + num_std_errors * psi_hat_SE
+  psi_endpoints <- psi_MLE + num_std_errors * psi_MLE_SE
   
   psi_grid <- seq(psi_endpoints[1], psi_endpoints[2], step_size)
   
@@ -144,43 +100,52 @@ get_fine_psi_grid <- function(psi_grid,
 
 safe_auglag <- possibly(nloptr::auglag)
 
-get_Beta_hat <- function(Beta_hat_obj_fn, init_guess) {
+get_lambda_hat <- function(lambda_hat_obj_fn, init_guess) {
   
-  safe_auglag(
+  auglag(
     x0 = init_guess,
-    fn = Beta_hat_obj_fn,
+    fn = lambda_hat_obj_fn,
     localsolver = "SLSQP",
     deprecatedBehavior = FALSE)$par
 }
 
 # Branch Parameters ---------------------------------------------------------------
 
-get_branch_mode <- function(X, Y_one_hot, Z, phi, psi_hat, optim_interval) {
+get_threshold <- function(lambda_MLE, Y, t, threshold_offset) ceiling(abs(log_likelihood(lambda_MLE, Y, t))) + threshold_offset
+
+get_omega_hat <- function(psi_MLE, weights) {
   
-  mu <- get_E_Y(X, Z, phi, psi_hat)
+  n_groups <- length(weights)
+  
+  constraints <- hitandrun::simplexConstraints(n_groups)
+  constraints$constr[1,] <- weights
+  constraints$rhs[[1]] <- psi_MLE
+  
+  omega_hat <- constraints |> 
+    hitandrun::hitandrun(1) |>
+    c()
+  
+  return(omega_hat)
+}
+
+get_branch_mode <- function(data, omega_hat, optim_interval) {
+  
+  t <- data$t
+  Y <- data$Y
+  mu <- t * omega_hat
   
   branch <- function(psi) {
     
-    Beta_hat_obj_fn <- function(Beta) {
+    lambda_hat_obj_fn <- function(lambda) {
       
-      Beta <- Beta |>
-        matrix(nrow = nrow(phi),
-               ncol = ncol(phi),
-               byrow = TRUE)
-      
-      return(-log_likelihood(X, mu, Z, psi, Beta))
+      return(-log_likelihood(lambda, mu, t))
     }
     
-    init_guess <- phi |> 
-      gdata::unmatrix(byrow = TRUE) |> 
-      unname()
+    init_guess <- omega_hat
     
-    Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, init_guess) |>
-      matrix(nrow = nrow(phi),
-             ncol = ncol(phi),
-             byrow = TRUE)
+    lambda_hat <- get_lambda_hat(lambda_hat_obj_fn, init_guess)
     
-    return(log_likelihood(X, Y_one_hot, Z, psi, Beta_hat))
+    return(log_likelihood(lambda_hat, Y, t))
   }
   
   optimize(f = branch,
@@ -189,60 +154,33 @@ get_branch_mode <- function(X, Y_one_hot, Z, phi, psi_hat, optim_interval) {
            tol = 0.1)$maximum
 }
 
-get_branch_params <- function(X,
-                              Y_one_hot,
-                              Z,
-                              Beta_MLE,
-                              Sigma_hat,
-                              psi_hat,
-                              optim_interval) {
+get_branch_params <- function(data, weights, psi_MLE, psi_grid) {
   
-  Beta_MLE_vec <- Beta_MLE |> 
-    gdata::unmatrix(byrow = TRUE) |> 
-    unname()
-  
+  t <- data$t
+  Y <- data$Y
+  optim_interval <- c(head(psi_grid, 1), tail(psi_grid, 1))
+
   while (TRUE) {
     
-    phi_candidate <- MASS::mvrnorm(1, Beta_MLE_vec, Sigma_hat) |>
-      matrix(nrow = nrow(Beta_MLE),
-             ncol = ncol(Beta_MLE),
-             byrow = TRUE)
+    omega_hat <- get_omega_hat(psi_MLE, weights)
     
-    branch_mode <- get_branch_mode(
-      X              = X, 
-      Y_one_hot      = Y_one_hot, 
-      Z              = Z, 
-      phi            = phi_candidate, 
-      psi_hat        = psi_hat, 
-      optim_interval = optim_interval
-    )
+    branch_mode <- get_branch_mode(data, omega_hat, optim_interval)
     
-    if (between(branch_mode, head(psi_grid, 1), tail(psi_grid, 1))) {
+    if (between(branch_mode, optim_interval[1], optim_interval[2])) {
       
-      mu <- get_E_Y(X, Z, phi_candidate, psi_hat)
+      mu <- t * omega_hat
       
-      Beta_hat_obj_fn <- function(Beta) {
+      lambda_hat_obj_fn <- function(lambda) {
         
-        Beta <- Beta |> 
-          matrix(nrow = nrow(Beta_MLE),
-                 ncol = ncol(Beta_MLE),
-                 byrow = TRUE)
-        
-        return(-log_likelihood(X, mu, Z, branch_mode, Beta))
-      }      
+        return(-log_likelihood(lambda, mu, t))
+      } 
       
-      init_guess <- phi_candidate |> 
-        gdata::unmatrix(byrow = TRUE) |> 
-        unname()
+      init_guess <- omega_hat
       
-      Beta_mode <- Beta_hat_obj_fn |> 
-        get_Beta_hat(init_guess) |> 
-        matrix(nrow = nrow(Beta_MLE),
-               ncol = ncol(Beta_MLE),
-               byrow = TRUE)
+      lambda_hat <- get_lambda_hat(lambda_hat_obj_fn, init_guess)
       
-      return(list(phi = phi_candidate,
-                  Beta_mode = Beta_mode,
+      return(list(omega_hat = omega_hat,
+                  lambda_hat = lambda_hat,
                   branch_mode = branch_mode))
     }
   }

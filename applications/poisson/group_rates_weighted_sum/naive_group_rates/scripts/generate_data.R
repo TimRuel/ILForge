@@ -1,4 +1,4 @@
-# applications/poisson_regression/weighted_sum/scripts/generate_data.R
+# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/generate_data.R
 
 #!/usr/bin/env Rscript
 
@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-suppressMessages(i_am("applications/poisson_regression/weighted_sum/scripts/generate_data.R"))
+suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/generate_data.R"))
 
 # -------------------------------
 # ✅ Parse arguments
@@ -29,10 +29,10 @@ if (length(args) == 3) {
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-estimand_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
+model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "naive_group_rates", "scripts", "helpers")
 common_helpers_dir  <- here("common", "scripts", "helpers")
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
-miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+miceadds::source.all(model_helpers_dir, print.source = FALSE)
 
 # -------------------------------
 # ✅ Setup directories
@@ -44,13 +44,13 @@ dir_create(data_dir)
 config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 
 # -------------------------------
-# ✅ Load config
+# ✅ Load experiment config
 # -------------------------------
-config_path <- here("config", "exps", paste0(exp_id, ".yml"))
-if (!file.exists(config_path)) {
-  stop("[ERROR] Config file not found at: ", config_path)
+exp_config_path <- here("config", "exps", paste0(exp_id, ".yml"))
+if (!file.exists(exp_config_path)) {
+  stop("❌ Experiment config file not found at: ", exp_config_path)
 }
-exp_config  <- read_yaml(config_path)
+exp_config  <- read_yaml(exp_config_path)
 
 # -------------------------------
 # ✅ Save config snapshot
@@ -64,25 +64,18 @@ message("[✓] Saved config snapshot to: ", config_snapshot_path)
 # -------------------------------
 # ✅ Load true parameters
 # -------------------------------
-Beta_0_path <- here(true_params_dir, "Beta_0.rds")
-covariates_path <- here(true_params_dir, "covariates.rds")
+lambda_0_path <- here(true_params_dir, "lambda_0.rds")
 
-if (!file_exists(Beta_0_path)) {
-  stop("[ERROR] Beta_0.rds not found at: ", Beta_0_path)
-}
-if (!file_exists(covariates_path)) {
-  stop("[ERROR] covariates.rds not found at: ", covariates_path)
+if (!file_exists(lambda_0_path)) {
+  stop("[ERROR] lambda_0.rds not found at: ", lambda_0_path)
 }
 
-message("[INFO] Loading Beta_0 from: ", Beta_0_path)
-Beta_0 <- readRDS(Beta_0_path)
-
-message("[INFO] Loading covariates from: ", covariates_path)
-covariates <- readRDS(covariates_path)
+message("[INFO] Loading lambda_0 from: ", lambda_0_path)
+lambda_0 <- readRDS(lambda_0_path)
 
 # -------------------------------
 # ✅ Generate new data
 # -------------------------------
 message("[INFO] Generating new data for iteration: ", iter_id)
-data <- generate_data(config_snapshot, Beta_0, covariates)
+data <- generate_data(config_snapshot, lambda_0)
 saveRDS(data, here(data_dir, "data.rds"))
