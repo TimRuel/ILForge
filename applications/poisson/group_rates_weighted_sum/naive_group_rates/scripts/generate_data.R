@@ -4,6 +4,7 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
+  library(nloptr)
   library(here)
   library(yaml)
   library(fs)
@@ -39,7 +40,7 @@ miceadds::source.all(model_helpers_dir, print.source = FALSE)
 # -------------------------------
 true_params_dir <- here("experiments", exp_id, "true_params")
 iter_dir <- here("experiments", exp_id, "simulations", sim_id, iter_id)
-data_dir <- here("experiments", exp_id, "simulations", sim_id, iter_id, "data")
+data_dir <- here(iter_dir, "data")
 dir_create(data_dir)
 config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 
@@ -62,20 +63,32 @@ write_strict_yaml(config_snapshot, config_snapshot_path)
 message("[✓] Saved config snapshot to: ", config_snapshot_path)
 
 # -------------------------------
-# ✅ Load true parameters
+# ✅ Load true parameters (all three)
 # -------------------------------
-lambda_0_path <- here(true_params_dir, "lambda_0.rds")
+theta_0_path     <- here(true_params_dir, "theta_0.rds")
+weights_path     <- here(true_params_dir, "weights.rds")
+n_per_group_path <- here(true_params_dir, "n_per_group.rds")
 
-if (!file_exists(lambda_0_path)) {
-  stop("[ERROR] lambda_0.rds not found at: ", lambda_0_path)
-}
+if (!file_exists(theta_0_path))     stop("[ERROR] theta_0.rds not found at: ", theta_0_path)
+if (!file_exists(weights_path))     stop("[ERROR] weights.rds not found at: ", weights_path)
+if (!file_exists(n_per_group_path)) stop("[ERROR] n_per_group.rds not found at: ", n_per_group_path)
 
-message("[INFO] Loading lambda_0 from: ", lambda_0_path)
-lambda_0 <- readRDS(lambda_0_path)
+message("[INFO] Loading theta_0 from: ", theta_0_path)
+message("[INFO] Loading weights from: ", weights_path)
+message("[INFO] Loading n_per_group from: ", n_per_group_path)
+
+theta_0     <- readRDS(theta_0_path)
+weights     <- readRDS(weights_path)
+n_per_group <- readRDS(n_per_group_path)
 
 # -------------------------------
 # ✅ Generate new data
 # -------------------------------
 message("[INFO] Generating new data for iteration: ", iter_id)
-data <- generate_data(config_snapshot, lambda_0)
+
+# Pass the whole config snapshot AND the true_params_dir so generate_data() can read what it needs
+data <- generate_data(config_snapshot, true_params_dir)
+
+# Save the generated data
 saveRDS(data, here(data_dir, "data.rds"))
+message("[✓] Saved simulated data to: ", here(data_dir, "data.rds"))

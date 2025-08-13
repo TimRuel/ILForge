@@ -18,13 +18,25 @@ suppressPackageStartupMessages({
 suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/execute_iteration.R"))
 
 # -------------------------------
+# ✅ Load helpers
+# -------------------------------
+model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "naive_group_rates", "scripts", "helpers")
+miceadds::source.all(model_helpers_dir, print.source = FALSE)
+
+common_helpers_dir  <- here("common", "scripts", "helpers")
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
+
+# -------------------------------
 # ✅ Parse arguments
 # -------------------------------
 args <- commandArgs(trailingOnly = TRUE)
-iter_dir <- if (length(args) > 0) args[1] else stop("[ERROR] An iteration directory was not provided.")
-if (!file.exists(iter_dir)) {
-  stop("[ERROR] Iteration directory does not exist at /", sub(".*(/?experiments/.*)", "\\1", iter_dir))
-}
+
+iter_dir <- get_arg_or_stop(1, "iteration directory")
+true_params_dir <- get_arg_or_stop(2, "true parameters directory")
+
+check_path_exists(iter_dir, "Iteration directory")
+check_path_exists(true_params_dir, "True parameters directory")
+
 skip_integrated <- "--skip-integrated" %in% args
 skip_profile    <- "--skip-profile" %in% args
 
@@ -40,20 +52,14 @@ config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 config <- read_yaml(config_snapshot_path)
 app_name <- config$experiment$app_name
 estimand <- config$experiment$estimand
-
-# -------------------------------
-# ✅ Load helpers
-# -------------------------------
-model_helpers_dir <- here("applications", "poisson_regression", "weighted_sum", "scripts", "helpers")
-common_helpers_dir  <- here("common", "scripts", "helpers")
-miceadds::source.all(common_helpers_dir, print.source = FALSE)
-miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+model <- config$experiment$model
 
 # -------------------------------
 # ✅ Load input data
 # -------------------------------
 data_dir <- here(iter_dir, "data")
 data <- readRDS(here(data_dir, "data.rds"))
+weights <- readRDS(here(true_params_dir, "weights.rds"))
 
 # -------------------------------
 # ✅ Setup results directory
@@ -71,7 +77,7 @@ if (!skip_integrated) {
   num_workers <- config$optimization_specs$IL$num_workers
   plan_strategy <- if (.Platform$OS.type == "unix") multicore else multisession
   plan(plan_strategy, workers = I(num_workers))
-  integrated_LL <- get_integrated_LL(config, model_df)
+  integrated_LL <- get_integrated_LL(config, data, weights)
   plan(sequential)
   saveRDS(integrated_LL, file = here(results_dir, "integrated_LL.rds"))
   il_end <- Sys.time()
@@ -87,7 +93,7 @@ if (!skip_integrated) {
 if (!skip_profile) {
   message("📈 Running profile likelihood...")
   pl_start <- Sys.time()
-  profile_LL <- get_profile_LL(config, model_df)
+  profile_LL <- get_profile_LL(config, data, weights)
   saveRDS(profile_LL, file = here(results_dir, "profile_LL.rds"))
   pl_end <- Sys.time()
   message(sprintf("✅ Profile likelihood complete (%.2f min)", as.numeric(difftime(pl_end, pl_start, units = "mins"))))
@@ -120,6 +126,7 @@ git_hash <- tryCatch(
 metadata <- list(
   app_name         = app_name,
   estimand         = estimand,
+  model            = model,
   exp_id           = config$experiment$id,
   sim_id           = config$experiment$sim_id,
   iter_id          = config$experiment$iter_id,

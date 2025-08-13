@@ -132,5 +132,5 @@ write_strict_yaml(config_snapshot, config_snapshot_path)
 # ✅ Run experiment
 # -------------------------------
 message("Executing iteration...")
-run_model_script("execute_iteration.R", c(iter_dir, flag_args))
+run_model_script("execute_iteration.R", c(iter_dir, true_params_dir, flag_args))
 message("✓ Iteration completed")

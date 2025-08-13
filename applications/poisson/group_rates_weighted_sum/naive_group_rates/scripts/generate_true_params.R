@@ -4,6 +4,7 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
+  library(nloptr)
   library(here)
   library(yaml)
   library(fs)
@@ -50,11 +51,30 @@ if (dir_exists(model_helpers_dir)) {
 exp_config <- read_yaml(exp_config_path)
 
 # -------------------------------
+# ✅ Set seed from config for reproducibility
+# -------------------------------
+if (!is.null(exp_config$seed)) {
+  message("[INFO] Setting seed from config: ", exp_config$seed)
+  set.seed(exp_config$seed)
+} else {
+  message("[INFO] No seed found in config; using default RNG state")
+}
+
+# -------------------------------
 # ✅ Generate parameters
 # -------------------------------
 true_parameters <- generate_true_parameters(exp_config)
 
-# Should return a named list like: list(lambda = ..., weights = ...)
+# Validate output elements
+expected_names <- c("theta_0", "weights", "n_per_group")
+missing_names <- setdiff(expected_names, names(true_parameters))
+if (length(missing_names) > 0) {
+  stop("[ERROR] Missing elements in true_parameters: ", paste(missing_names, collapse = ", "))
+}
+
+# Save each element as separate .rds file
 save_list_objects(true_parameters, true_params_dir)
 
 message("[✓] Saved true parameters to: ", true_params_dir)
+message("[INFO] Saved objects: ", paste(names(true_parameters), collapse = ", "))
+

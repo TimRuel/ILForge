@@ -2,33 +2,22 @@ experiment:
   app: poisson
   estimand: group_rates_weighted_sum
   model: naive_group_rates
-  id: exp_v3.0.0
+  id: exp_v3.0.1
   sim_id: ~
   iter_id: ~
   description: |
     Estimate a separate Poisson rate (θ_j) for each group using observed counts  and known exposure times. No covariates or regression structure; each group  is treated independently. Group-level weights can vary and influence summaries  (e.g., weighted averages).
 seed: 2685
 groups:
-  n_groups: 5
-  n_per_group:
-  - 10
-  - 10
-  - 10
-  - 10
-  - 10
-  labels:
-  - A
-  - B
-  - C
-  - D
-  - E
+  n_groups: 50
+  n_per_group: 3
+  labels: auto_upper
 theta:
-  values:
+  distribution: runif
+  args:
   - 1.0
-  - 1.5
-  - 2.0
-  - 2.5
-  - 3.0
+  - 5.0
+  per_group: true
 exposure:
   name: t
   distribution: runif

@@ -6,7 +6,7 @@ experiment:
   sim_id: sim_01
   iter_id: iter_01
   description: |
-    Estimate a separate Poisson rate (λ_j) for each group using observed counts  and known exposure times. No covariates or regression structure; each group  is treated independently. Group-level weights can vary and influence summaries  (e.g., weighted averages).
+    Estimate a separate Poisson rate (θ_j) for each group using observed counts  and known exposure times. No covariates or regression structure; each group  is treated independently. Group-level weights can vary and influence summaries  (e.g., weighted averages).
 seed: 2685
 groups:
   n_groups: 5
@@ -22,7 +22,7 @@ groups:
   - C
   - D
   - E
-lambda:
+theta:
   values:
   - 1.0
   - 1.5
@@ -41,4 +41,23 @@ weights:
   - 1
   - 10
   normalize_mean_to: 1.0
+optimization_specs:
+  IL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    num_std_errors:
+    - -3
+    - 4
+    chunk_size: 4
+    max_cores: 12
+    num_workers: 12
+  PL:
+    step_size: 0.01
+    fine_step_size: 0.005
+    fine_window: 0.05
+    alpha_levels:
+    - 0.1
+    - 0.05
+    - 0.01
 
