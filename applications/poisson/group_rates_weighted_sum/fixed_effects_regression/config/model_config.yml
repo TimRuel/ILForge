@@ -1,7 +1,7 @@
 experiment:
   app: poisson
   estimand: group_rates_weighted_sum
-  model: fixed_effects_regression_with_common_slopes
+  model: fixed_effects_regression
   id: ~
   sim_id: ~
   iter_id: ~
@@ -13,11 +13,11 @@ experiment:
     of estimated rates). Rates can be evaluated at particular covariate values (e.g., reference values
     or sample means) or integrated/marginalized over a covariate distribution.
 
-seed: 6481
+seed: 1762
 
 model:
   groups:
-    n_groups: 5
+    n_groups: 10
     n_per_group:
       mode: fixed                  # options: fixed, sample
       args: 3                      # if fixed → single integer; if sample → [min, max] or distribution spec
@@ -31,12 +31,8 @@ model:
     - name: X2
       type: continuous
       distribution: runif
-      args: [-3, 3]                 
-    - name: X3
-      type: continuous
-      distribution: rt
-      args: [5, 0]                 
-
+      args: [-1.0, 1.0]                
+                 
   true_params:
     Beta_0:
       # Each element will be a vector: intercept + coefficients
@@ -54,7 +50,7 @@ model:
 exposure:
   name: t
   distribution: runif
-  args: [2, 5]                    # t_i ~ U(1, 3)
+  args: [2, 4]                    # t_i ~ U(1, 3)
 
 weights:
   distribution: runif             # alpha_g ~ U(1, 10)
@@ -67,7 +63,6 @@ evaluation:
     xstar:
       X1: 0.0
       X2: 0.0
-      X3: 0.0
   marginal:
     over: sample                  # options: sample (use simulated X), group (average within group)
     summary: mean

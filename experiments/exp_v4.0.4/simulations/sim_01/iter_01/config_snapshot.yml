@@ -1,0 +1,92 @@
+experiment:
+  app: poisson
+  estimand: group_rates_weighted_sum
+  model: fixed_effects_regression
+  id: exp_v4.0.4
+  sim_id: sim_01
+  iter_id: iter_01
+  description: |
+    Estimate group-specific Poisson rates within a fixed-effects regression that includes covariates. Observed counts are modeled with known exposure times (offsets), categorical indicators for groups, and additional covariates. Group effects are estimated jointly with common covariate effects (shared slopes). Group-level weights can vary and are applied when forming summaries (e.g., weighted sums or averages of estimated rates). Rates can be evaluated at particular covariate values (e.g., reference values or sample means) or integrated/marginalized over a covariate distribution.
+seed: 1762
+model:
+  groups:
+    n_groups: 5
+    n_per_group:
+      mode: fixed
+      args: 3
+    labels: auto_upper
+  covariates:
+  - name: X1
+    type: continuous
+    distribution: rnorm
+    args:
+    - 0
+    - 1
+  - name: X2
+    type: continuous
+    distribution: runif
+    args:
+    - -3
+    - 3
+  - name: X3
+    type: continuous
+    distribution: rt
+    args:
+    - 5
+    - 0
+  true_params:
+    Beta_0:
+      intercepts:
+        distribution: runif
+        args:
+        - 1.0
+        - 5.0
+        scale: rate
+      coefficients:
+        mode: sample
+        distribution: runif
+        args:
+        - -1.0
+        - 1.0
+exposure:
+  name: t
+  distribution: runif
+  args:
+  - 2
+  - 4
+weights:
+  distribution: runif
+  args:
+  - 1
+  - 10
+  normalize_mean_to: 1.0
+evaluation:
+  mode: reference
+  reference:
+    xstar:
+      X1: 0.0
+      X2: 0.0
+      X3: 0.0
+  marginal:
+    over: sample
+    summary: mean
+optimization_specs:
+  IL:
+    step_size: 0.05
+    fine_step_size: 0.025
+    fine_window: 0.1
+    num_std_errors:
+    - -2.5
+    - 6.0
+    chunk_size: 4
+    max_cores: 12
+    num_workers: 12
+  PL:
+    step_size: 0.05
+    fine_step_size: 0.025
+    fine_window: 0.1
+    alpha_levels:
+    - 0.1
+    - 0.05
+    - 0.01
+

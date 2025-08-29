@@ -1,4 +1,4 @@
-# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/helpers/report_utils.R
+# applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/helpers/report_utils.R
 
 get_LL_df_long <- function(LL_df) {
   
@@ -136,19 +136,25 @@ render_LL_comparison_tables <- function(MLE_data, conf_ints, psi_0) {
       position = "center",
       font_size = 18
     ) |>
-    row_spec(nrow(MLE_data) + 1, color = "green", bold = TRUE)
+    row_spec(nrow(MLE_data) + 1, color = "green", bold = TRUE) |> 
+    column_spec(1:2, extra_css = "vertical-align:middle;")
   
   # Format Confidence Interval table
   ci_table <- conf_ints |>
     mutate(
-      contains_truth = (lower <= psi_0 & upper >= psi_0),
+      contains_truth = !is.na(lower) & !is.na(upper) & (lower <= psi_0 & upper >= psi_0),
       Status = ifelse(contains_truth, "✅", "❌"),
       Interval = sprintf("(%.3f, %.3f)", lower, upper),
-      Length = sprintf("%.3f", upper - lower),
+      Length = ifelse(
+        is.na(lower) | is.na(upper),
+        "--",
+        sprintf("%.3f", upper - lower)
+      ),
       `Confidence Level` = confidence
     ) |>
     rename(Source = pseudolikelihood) |>
     select(`Confidence Level`, Source, Interval, Length, Status)
+  
   
   # Add "Truth" rows for each confidence level
   confidence_levels <- unique(ci_table$`Confidence Level`)
@@ -175,8 +181,9 @@ render_LL_comparison_tables <- function(MLE_data, conf_ints, psi_0) {
       font_size = 18,
       html_font = "Arial"
     ) |>
-    collapse_rows(columns = 1, valign = "top") |>
-    row_spec(which(ci_table$Source == "Truth"), bold = TRUE, color = "green")
+    collapse_rows(columns = 1, valign = "middle") |>
+    row_spec(which(ci_table$Source == "Truth"), bold = TRUE, color = "green") |> 
+    column_spec(1:4, extra_css = "vertical-align:middle;")
   
   list(MLEs = mle_table, CIs = ci_kable)
 }

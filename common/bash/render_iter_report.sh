@@ -1,30 +1,31 @@
 #!/usr/bin/bash
 
-# Usage: ./common/bash/render_iter_report.sh <APP> <ESTIMAND> <EXP_ID> <SIM_ID> <ITER_ID>
-# Example: ./common/bash/render_iter_report.sh multinomial_logistic_regression entropy exp_v1.0.0 sim_01 iter_0001
+# Usage: ./common/bash/render_iter_report.sh <APP> <ESTIMAND> <MODEL> <EXP_ID> <SIM_ID> <ITER_ID>
+# Example: ./common/bash/render_iter_report.sh poisson group_rates_weighted_sum naive_group_rates exp_v1.0.0 sim_01 iter_0001
 
 set -e
 
 # -------------------------------
 # ✅ Validate arguments
 # -------------------------------
-if [ "$#" -ne 5 ]; then
-  echo "Usage: $0 <APP> <ESTIMAND> <EXP_ID> <SIM_ID> <ITER_ID>"
+if [ "$#" -ne 6 ]; then
+  echo "Usage: $0 <APP> <ESTIMAND> <MODEL> <EXP_ID> <SIM_ID> <ITER_ID>"
   exit 1
 fi
 
 APP="$1"
 ESTIMAND="$2"
-EXP_ID="$3"
-SIM_ID="$4"
-ITER_ID="$5"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+ITER_ID="$6"
 
 # -------------------------------
 # ✅ Resolve project root and QMD directory
 # -------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-QMD_DIR="${PROJECT_ROOT}/applications/${APP}/${ESTIMAND}/quarto"
+QMD_DIR="${PROJECT_ROOT}/applications/${APP}/${ESTIMAND}/${MODEL}/quarto"
 QMD_BASENAME="iter_report.qmd"
 QMD_PATH="${QMD_DIR}/${QMD_BASENAME}"
 

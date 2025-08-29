@@ -20,7 +20,7 @@ suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/fixed_effec
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "naive_group_rates", "scripts", "helpers")
+model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "fixed_effects_regression", "scripts", "helpers")
 miceadds::source.all(model_helpers_dir, print.source = FALSE)
 
 common_helpers_dir  <- here("common", "scripts", "helpers")
