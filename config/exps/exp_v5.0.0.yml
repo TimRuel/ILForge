@@ -1,0 +1,72 @@
+experiment:
+  app: poisson
+  estimand: group_rates_weighted_sum
+  model: fixed_effects_varying_slope
+  id: exp_v5.0.0
+  sim_id: ~
+  iter_id: ~
+  description: |
+    Estimate group-specific Poisson rates within a fixed-effects regression with covariates. Observed counts are modeled with known exposure times (offsets), categorical indicators for groups, and additional covariates. Each group has its own intercept and slope for at least one covariate, while other covariate effects can be shared across groups. Group-level weights are applied when forming summaries such as weighted sums or averages of estimated rates. Rates can be evaluated at particular covariate values (reference values) or marginalized over a covariate distribution.
+seed: 1762
+model:
+  groups:
+    n_groups: 5
+    n_per_group:
+      mode: fixed
+      args: 3
+    labels: auto_upper
+  covariates:
+  - name: X1
+    type: continuous
+    distribution: rnorm
+    args:
+    - 0
+    - 1
+    varying_slope: true
+  - name: X2
+    type: continuous
+    distribution: runif
+    args:
+    - -1.0
+    - 1.0
+    varying_slope: false
+  true_params:
+    Beta_0:
+      intercepts:
+        distribution: runif
+        args:
+        - 1.0
+        - 5.0
+        scale: rate
+      coefficients:
+        X1:
+          mode: sample
+          distribution: runif
+          args:
+          - -1.0
+          - 1.0
+        X2:
+          mode: fixed
+          args: 0.2
+exposure:
+  name: t
+  distribution: runif
+  args:
+  - 2
+  - 4
+weights:
+  distribution: runif
+  args:
+  - 1
+  - 10
+  normalize_mean_to: 1.0
+evaluation:
+  mode: reference
+  reference:
+    xstar:
+      X1: 0.0
+      X2: 0.0
+  marginal:
+    over: sample
+    summary: mean
+

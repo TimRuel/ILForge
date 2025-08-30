@@ -117,21 +117,3 @@ Rscript --max-connections=256 "$RSCRIPT_PATH" \
   "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
 
 echo "✅ SLURM iteration complete: $ITER_ID"
-
-# ===============================
-# ✅ Submit post-processing job after all array tasks complete
-# ===============================
-if [[ "$SLURM_ARRAY_TASK_ID" -eq 0 ]]; then
-    POSTPROCESS_SCRIPT="common/bash/postprocess_git_lfs.sh"
-
-    if [[ -f "$POSTPROCESS_SCRIPT" ]]; then
-        # Get the array job ID (all tasks share the same array job ID)
-        ARRAY_JOB_ID=$SLURM_ARRAY_JOB_ID
-
-        echo "📌 Submitting post-processing job for experiment $EXP_ID after all array tasks complete..."
-        sbatch --dependency=afterok:$ARRAY_JOB_ID "$POSTPROCESS_SCRIPT" "$EXP_ID"
-    else
-        echo "❌ Post-processing script not found: $POSTPROCESS_SCRIPT"
-    fi
-fi
-
