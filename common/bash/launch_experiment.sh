@@ -14,16 +14,17 @@
 # ===============================
 # ✅ Validate CLI arguments
 # ===============================
-if [[ $# -ne 4 ]]; then
+if [[ $# -ne 5 ]]; then
   echo "❌ ERROR: Missing arguments."
-  echo "Usage: sbatch $0 <application_name> <estimand_name> <experiment_id> <simulation_id>"
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
   exit 1
 fi
 
 APP_NAME="$1"
 ESTIMAND="$2"
-EXP_ID="$3"
-SIM_ID="$4"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
 
 ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
 ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
@@ -66,7 +67,7 @@ module load nlopt/2.7.1-gcc-12.3.0
 module load git/2.37.2-gcc-10.4.0
 module load chrome/114.0.5735.90
 
-echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND) with $REQUESTED_CORES cores..."
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
 
 # ===============================
 # ✅ Background checkjob monitor
@@ -113,6 +114,6 @@ command -v Rscript >/dev/null 2>&1 || {
 }
 
 Rscript --max-connections=256 "$RSCRIPT_PATH" \
-  "$APP_NAME" "$ESTIMAND" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
 
 echo "✅ SLURM iteration complete: $ITER_ID"
