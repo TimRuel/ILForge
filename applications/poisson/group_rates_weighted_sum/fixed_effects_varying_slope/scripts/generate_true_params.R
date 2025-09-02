@@ -53,9 +53,9 @@ exp_config <- read_yaml(exp_config_path)
 # -------------------------------
 # ✅ Set seed from config for reproducibility
 # -------------------------------
-if (!is.null(exp_config$seed)) {
-  message("[INFO] Setting seed from config: ", exp_config$seed)
-  set.seed(exp_config$seed)
+if (!is.null(exp_config$model$seed)) {
+  message("[INFO] Setting seed from config: ", exp_config$model$seed)
+  set.seed(exp_config$model$seed)
 } else {
   message("[INFO] No seed found in config; using default RNG state")
 }
@@ -63,7 +63,7 @@ if (!is.null(exp_config$seed)) {
 # -------------------------------
 # ✅ Generate parameters
 # -------------------------------
-true_parameters <- generate_true_parameters(exp_config)
+true_parameters <- generate_true_parameters(exp_config, n_mc = 1e6)
 
 # Validate output elements
 expected_names <- c("Beta_0", "theta_0", "weights", "n_per_group")

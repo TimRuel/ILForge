@@ -1,4 +1,4 @@
-# applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/generate_data.R
+# applications/poisson/group_rates_weighted_sum/fixed_effects_varying_slope/scripts/generate_data.R
 
 #!/usr/bin/env Rscript
 
@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 # -------------------------------
 # ✅ Anchor project root
 # -------------------------------
-suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/generate_data.R"))
+suppressMessages(i_am("applications/poisson/group_rates_weighted_sum/fixed_effects_varying_slope/scripts/generate_data.R"))
 
 # -------------------------------
 # ✅ Parse arguments
@@ -30,7 +30,7 @@ if (length(args) == 3) {
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "fixed_effects_regression", "scripts", "helpers")
+model_helpers_dir <- here("applications", "poisson", "group_rates_weighted_sum", "fixed_effects_varying_slope", "scripts", "helpers")
 common_helpers_dir  <- here("common", "scripts", "helpers")
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
 miceadds::source.all(model_helpers_dir, print.source = FALSE)

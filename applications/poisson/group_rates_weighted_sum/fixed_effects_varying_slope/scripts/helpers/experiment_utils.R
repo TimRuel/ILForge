@@ -1,11 +1,25 @@
-# applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/helpers/experiment_utils.R
+# applications/poisson/group_rates_weighted_sum/fixed_effects_varying_slope/scripts/helpers/experiment_utils.R
 
 # Miscellaneous -----------------------------------------------------------
 
-make_formula <- function(response, covar_pattern, extras = NULL, offset = NULL, data) {
+make_formula <- function(response, shared_covars, varying_covars, data, offset = NULL) {
+  # Build RHS parts
+  rhs_parts <- c()
   
-  covars <- grep(covar_pattern, names(data), value = TRUE)
-  rhs <- paste(c(extras, covars), collapse = " + ")
+  # Shared slopes (same coefficient across groups)
+  if (length(shared_covars) > 0) {
+    rhs_parts <- c(rhs_parts, shared_covars)
+  }
+  
+  # Varying slopes (interaction with group)
+  if (length(varying_covars) > 0) {
+    rhs_parts <- c(rhs_parts, paste0(varying_covars, ":group"))
+  }
+  
+  # Add group main effect (intercepts per group, no global intercept)
+  rhs <- paste(c("0 + group", rhs_parts), collapse = " + ")
+  
+  # Full formula
   f <- as.formula(paste(response, "~", rhs))
   if (!is.null(offset)) {
     attr(f, "offset") <- offset
@@ -13,26 +27,38 @@ make_formula <- function(response, covar_pattern, extras = NULL, offset = NULL, 
   f
 }
 
-fit_model <- function(data) {
-  
-  formula <- make_formula("Y", "^X", extras = "0 + group", data = data)
+fit_model <- function(data, shared_covars, varying_covars) {
+  formula <- make_formula(
+    response = "Y",
+    shared_covars = shared_covars,
+    varying_covars = varying_covars,
+    data = data,
+    offset = "log(t)"
+  )
   
   glm(formula, offset = log(t), family = poisson(), data = data)
 }
 
 get_Beta_MLE <- function(model) {
   
-  group_labels <- model$xlevels$group
-  covariate_labels <- model$terms |> 
-    attr("term.labels") |> 
-    setdiff("group")
+  coefs <- coef(model)
+  Beta_MLE <- as.matrix(coefs, ncol = 1)  # stack as single-column matrix
   
-  model |> 
-    coef() |> 
-    set_names(c(group_labels, covariate_labels))
+  # Clean the names
+  names_clean <- names(coefs)
+  
+  # Intercepts: "groupA" → "A"
+  names_clean <- sub("^group", "", names_clean)
+  
+  # Varying slopes: "groupA:X2" → "A:X2"
+  names_clean <- sub("^group([A-Z]+):", "\\1:", names_clean)
+  
+  rownames(Beta_MLE) <- names_clean
+  
+  Beta_MLE
 }
 
-get_theta <- function(Beta, G) exp(Beta[1:G])
+get_theta <- function(Beta, G) exp(Beta[1:G,])
 
 get_psi <- function(Beta, weights) {
   
@@ -41,29 +67,47 @@ get_psi <- function(Beta, weights) {
   sum(theta * weights)
 }
 
-# In make_formula, incorporate offset properly
-make_formula <- function(response, covar_pattern, extras = NULL, offset = NULL, data) {
-  covars <- grep(covar_pattern, names(data), value = TRUE)
-  rhs <- paste(c(extras, covars), collapse = " + ")
-  if (!is.null(offset)) rhs <- paste(rhs, "+ offset(offset)")
-  as.formula(paste(response, "~", rhs))
-}
-
 # General delta-method version of SE(psi_hat)
-get_psi_MLE_SE <- function(model, weights, X_ref = NULL) {
-  # X_ref: design matrix where psi_hat is evaluated (e.g., reference covariates)
+get_psi_MLE_SE <- function(model, weights, X_ref = NULL, ref_covariates = NULL) {
+  # Extract Beta_MLE as numeric vector
+  Beta_MLE <- as.numeric(get_Beta_MLE(model))
   Beta_cov <- vcov(model)
-  Beta_MLE <- get_Beta_MLE(model)
   
+  # Group labels
+  group_labels <- levels(model$data$group)
+  G <- length(group_labels)
+  
+  # If X_ref is not provided, build one for reference covariates
   if (is.null(X_ref)) {
-    # naive: only intercepts
-    G <- nlevels(model$data$group)
-    grad <- c(weights * exp(Beta_MLE[1:G]), rep(0, length(Beta_MLE) - G))
-  } else {
-    eta <- X_ref %*% Beta_MLE
-    grad <- t(X_ref) %*% (weights * exp(eta))
+    total_cols <- length(Beta_MLE)
+    X_ref <- matrix(0, nrow = G, ncol = total_cols)
+    
+    # Intercept columns
+    X_ref[cbind(1:G, 1:G)] <- 1
+    
+    # Shared covariates evaluated at ref_covariates or 0
+    if (!is.null(ref_covariates)) {
+      shared_idx <- (G + 1):(total_cols - (G * length(ref_covariates$varying))) 
+      if (length(shared_idx) > 0) {
+        X_ref[, shared_idx] <- matrix(rep(ref_covariates$shared, each = G), nrow = G)
+      }
+    }
+    
+    # Varying slopes evaluated at ref_covariates
+    if (!is.null(ref_covariates) && length(ref_covariates$varying) > 0) {
+      start <- total_cols - G * length(ref_covariates$varying) + 1
+      for (i in seq_along(ref_covariates$varying)) {
+        X_ref[, start:(start+G-1)] <- diag(ref_covariates$varying[i], G)
+        start <- start + G
+      }
+    }
   }
   
+  # Compute gradient
+  eta <- X_ref %*% Beta_MLE
+  grad <- t(X_ref) %*% (weights * exp(eta))
+  
+  # Delta-method SE
   sqrt(as.numeric(t(grad) %*% Beta_cov %*% grad))
 }
 
@@ -152,167 +196,6 @@ get_Beta_hat <- function(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess) {
   
 # omega_hat ---------------------------------------------------------------
 
-# get_threshold <- function(Beta_MLE, X_design, Y_design, threshold_offset) {
-#   
-#   ceiling(abs(log_likelihood(Beta_MLE, X_design, Y_design))) + threshold_offset
-# }
-
-# get_omega_hat_branch_mode <- function(omega_hat, X, Y, t, search_interval) {
-#   
-#   Beta_hat_obj_fn <- Beta_hat_obj_fn_template(omega_hat, X, Y, t)
-#   
-#   omega_hat_branch <- function(psi) {
-#     
-#     Beta_hat_con_fn <- Beta_hat_con_fn_template(weights, G, psi_start)
-#     
-#     Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, c(omega_hat))
-#     
-#     return(log_likelihood(Beta_hat, X, Y, t))
-#   }
-#   
-#   optimize(omega_hat_branch,
-#            interval = search_interval,
-#            maximum = TRUE,
-#            tol = 0.1)$maximum
-# }
-# 
-# get_branch_params <- function(X_design,
-#                               Y_design,
-#                               X_h_design,
-#                               threshold,
-#                               psi_hat,
-#                               psi_grid,
-#                               Jm1, 
-#                               p, 
-#                               n,
-#                               init_guess_sd) {
-#   
-#   omega_hat_obj_fn <- function(Beta) 0
-#   
-#   omega_hat_eq_con_fn <- function(Beta) omega_hat_eq_con_fn_rcpp(Beta, X_h_design, Jm1, p, psi_hat)
-#   
-#   omega_hat_ineq_con_fn <- function(Beta) omega_hat_ineq_con_fn_rcpp(Beta, X_design, Y_design, Jm1, p, n, threshold)
-#   
-#   num_discarded <- 0
-#   
-#   while (TRUE) {
-#     
-#     init_guess <- rnorm(p * Jm1, sd = init_guess_sd)
-#     
-#     omega_hat_candidate <- safe_auglag(
-#       x0 = init_guess,
-#       fn = omega_hat_obj_fn,
-#       heq = omega_hat_eq_con_fn,
-#       hin = omega_hat_ineq_con_fn,
-#       localsolver = "SLSQP",
-#       deprecatedBehavior = FALSE,
-#       control = list(on.error = "ignore")
-#     )$par
-#     
-#     if (!is.null(omega_hat_candidate) && abs(omega_hat_eq_con_fn(omega_hat_candidate)) <= 0.1 && omega_hat_ineq_con_fn(omega_hat_candidate) <= 0) {
-#       
-#       omega_hat_candidate <- matrix(omega_hat_candidate, nrow = p, ncol = Jm1, byrow = FALSE)
-#       
-#       omega_hat_candidate_branch_mode <- get_omega_hat_branch_mode(
-#         omega_hat = omega_hat_candidate,
-#         X_design = X_design,
-#         Y_design = Y_design,
-#         X_h_design = X_h_design, 
-#         Jm1 = Jm1,
-#         p = p,
-#         n = n
-#       )
-#       
-#       if (between(omega_hat_candidate_branch_mode, head(psi_grid, 1), tail(psi_grid, 1))) {
-#         
-#         Beta_hat_obj_fn <- function(Beta) Beta_hat_obj_fn_rcpp(Beta, X_design, omega_hat_candidate, Jm1, p, n)
-#         
-#         Beta_hat_con_fn <- function(Beta) Beta_hat_con_fn_rcpp(Beta, X_h_design, omega_hat_candidate_branch_mode, Jm1, p)
-#         
-#         Beta_hat <- get_Beta_hat_template(Beta_hat_obj_fn, Beta_hat_con_fn, c(omega_hat_candidate)) |> 
-#           matrix(nrow = p, ncol = Jm1, byrow = FALSE)
-#         
-#         return(list(omega_hat = omega_hat_candidate,
-#                     branch_mode = list(Beta_MLE = Beta_hat,
-#                                        psi = omega_hat_candidate_branch_mode),
-#                     num_discarded = num_discarded))
-#       }
-#     }
-#     num_discarded <- num_discarded + 1
-#   }
-# }
-
-# get_omega_hat <- function(psi_MLE, weights, n_covariates) {
-#   
-#   n_groups <- length(weights)
-#   
-#   constraints <- hitandrun::simplexConstraints(n_groups)
-#   constraints$constr[1,] <- weights
-#   constraints$rhs[[1]] <- psi_MLE
-#   
-#   omega_hat <- constraints |> 
-#     hitandrun::hitandrun(1) |>
-#     log() |> 
-#     c(runif(n_covariates, -1, 1))
-#   
-#   return(omega_hat)
-# }
-
-# get_omega_hat <- function(psi_MLE, weights, n_covariates, sigma = 1) {
-#   
-#   n_groups <- length(weights)
-#   
-#   # Sample first (G-1) betas from a normal distribution
-#   betas_free <- rnorm(n_groups - 1, mean = 0, sd = sigma)
-#   
-#   # Solve for the last beta to satisfy sum(alpha_i * exp(beta_i)) = psi_MLE
-#   solve_last_beta <- function(beta_last) {
-#     sum(weights[1:(n_groups - 1)] * exp(betas_free)) +
-#       weights[n_groups] * exp(beta_last) - psi_MLE
-#   }
-#   
-#   # Find root for last beta
-#   beta_last <- uniroot(solve_last_beta, interval = c(-50, 50))$root
-#   
-#   betas <- c(betas_free, beta_last)
-#   
-#   # Covariate coefficients: independent Gaussian
-#   gammas <- rnorm(n_covariates, mean = 0, sd = sigma)
-#   
-#   omega_hat <- c(betas, gammas)
-#   
-#   return(omega_hat)
-# }
-
-# get_omega_hat <- function(psi_MLE, weights, n_covariates,
-#                           sampler = function(n) rnorm(n, 0, 1)) {
-#   
-#   n_groups <- length(weights)
-#   
-#   rhs <- -1
-#   
-#   while (rhs <= 0) {
-#     
-#     # Sample first n_groups - 1 group coefficients freely
-#     beta_free <- sampler(n_groups - 1)
-#     
-#     # Compute last coefficient to satisfy the constraint
-#     rhs <- psi_MLE - sum(weights[1:(n_groups - 1)] * exp(beta_free))
-#     }
-#   
-#   beta_last <- log(rhs / weights[n_groups])
-#   
-#   betas <- c(beta_free, beta_last)
-#   
-#   # Sample remaining covariate coefficients freely
-#   gammas <- sampler(n_covariates)
-#   
-#   omega_hat <- c(betas, gammas) |> 
-#     unname()
-#   
-#   return(omega_hat)
-# }
-
 get_omega_hat <- function(psi_MLE, weights, n_covariates,
                           v_sampler = function(n) rgamma(n, shape = 2, rate = 2),
                           gamma_sampler = function(n) rnorm(n, 0, 1),
@@ -367,7 +250,6 @@ get_omega_hat <- function(psi_MLE, weights, n_covariates,
   gammas <- gamma_sampler(n_covariates)
   c(beta, gammas)
 }
-
 
 # Integrated Log-Likelihood ---------------------------------------------------
 
