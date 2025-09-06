@@ -1,7 +1,5 @@
 # applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/helpers/experiment_utils.R
 
-# Miscellaneous -----------------------------------------------------------
-
 make_formula <- function(config) {
   # Build RHS parts
   rhs_parts <- c("0", "group")
@@ -38,81 +36,106 @@ fit_model <- function(config, data) {
   glm(formula, offset = log(t), family = poisson(), data = data)
 }
 
+rename_coefs <- function(coef_names) {
+  # Separate intercepts, main effects, and interactions
+  intercepts   <- coef_names[!grepl("X", coef_names)]              # group names
+  main_effects <- coef_names[grepl("^X\\d+$", coef_names)]         # X1, X2, ...
+  interactions <- coef_names[grepl(":", coef_names)]               # group:X2, ...
+  
+  # Figure out which X's are fixed vs varying
+  # Fixed slopes: main effects only
+  fixed_Xs <- gsub("^X", "", main_effects)
+  # Varying slopes: from interactions
+  varying_Xs <- unique(gsub(".*:X", "", interactions))
+  
+  # Replacements
+  new_names <- character(length(coef_names))
+  
+  # Intercepts → α_group
+  new_names[match(intercepts, coef_names)] <- paste0("α_", sub("^group", "", intercepts))
+  
+  # Fixed slopes → γ#
+  new_names[match(main_effects, coef_names)] <- 
+    paste0("γ", gsub("^X", "", main_effects))
+  
+  # Varying slopes → ζ#_group
+  for (int in interactions) {
+    parts <- strsplit(int, ":")[[1]]   # e.g., c("groupA", "X2")
+    group <- sub("^group", "", parts[1])
+    xnum  <- sub("^X", "", parts[2])
+    new_names[match(int, coef_names)] <- paste0("ζ", xnum, "_", group)
+  }
+  
+  return(new_names)
+}
+
 get_Beta_MLE <- function(model) {
   
   coefs <- coef(model)
   Beta_MLE <- as.matrix(coefs, ncol = 1)  # stack as single-column matrix
   
-  # Clean the names
-  names_clean <- names(coefs)
-  
-  # Intercepts: "groupA" → "A"
-  names_clean <- sub("^group", "", names_clean)
-  
-  # Varying slopes: "groupA:X2" → "A:X2"
-  names_clean <- sub("^group([A-Z]+):", "\\1:", names_clean)
-  
-  rownames(Beta_MLE) <- names_clean
+  rownames(Beta_MLE) <- rename_coefs(names(coefs))
   
   Beta_MLE
 }
 
-get_theta <- function(Beta, G) exp(Beta[1:G,])
+get_eta <- function(Beta, X) X %*% Beta
 
-get_psi <- function(Beta, weights) {
+get_theta <- function(Beta, X) {
   
-  theta <- get_theta(Beta, length(weights))
+  data.frame(eta = get_eta(Beta, X),
+             group = factor(rownames(X))) |> 
+    group_by(group) |> 
+    summarise(theta = mean(exp(eta))) |> 
+    deframe()
+}
+
+get_mu <- function(eta, t) t * exp(eta)
+
+get_psi <- function(Beta, X, weights) {
+  
+  theta <- get_theta(Beta, X)
   
   sum(theta * weights)
 }
 
 # General delta-method version of SE(psi_hat)
-get_psi_MLE_SE <- function(model, weights, X_ref = NULL, ref_covariates = NULL) {
+get_psi_MLE_SE <- function(model, weights, X) {
   # Extract Beta_MLE as numeric vector
-  Beta_MLE <- as.numeric(get_Beta_MLE(model))
+  Beta_MLE <- drop(get_Beta_MLE(model))
   Beta_cov <- vcov(model)
   
-  # Group labels
-  group_labels <- levels(model$data$group)
-  G <- length(group_labels)
+  # Group membership for each observation
+  groups <- model$data$group
+  group_labels <- levels(groups)
   
-  # If X_ref is not provided, build one for reference covariates
-  if (is.null(X_ref)) {
-    total_cols <- length(Beta_MLE)
-    X_ref <- matrix(0, nrow = G, ncol = total_cols)
-    
-    # Intercept columns
-    X_ref[cbind(1:G, 1:G)] <- 1
-    
-    # Shared covariates evaluated at ref_covariates or 0
-    if (!is.null(ref_covariates)) {
-      shared_idx <- (G + 1):(total_cols - (G * length(ref_covariates$varying))) 
-      if (length(shared_idx) > 0) {
-        X_ref[, shared_idx] <- matrix(rep(ref_covariates$shared, each = G), nrow = G)
-      }
+  # Ensure weights are a named vector (one per group)
+  if (is.null(names(weights))) {
+    if (length(weights) != length(group_labels)) {
+      stop("If 'weights' is unnamed, it must have length equal to number of groups.")
     }
-    
-    # Varying slopes evaluated at ref_covariates
-    if (!is.null(ref_covariates) && length(ref_covariates$varying) > 0) {
-      start <- total_cols - G * length(ref_covariates$varying) + 1
-      for (i in seq_along(ref_covariates$varying)) {
-        X_ref[, start:(start+G-1)] <- diag(ref_covariates$varying[i], G)
-        start <- start + G
-      }
-    }
+    weights <- setNames(weights, group_labels)
   }
   
-  # Compute gradient
-  eta <- X_ref %*% Beta_MLE
-  grad <- t(X_ref) %*% (weights * exp(eta))
+  # Linear predictors and exp
+  eta <- drop(get_eta(Beta_MLE, X))
+  exp_eta <- exp(eta)
+  
+  # Group sizes
+  n_g <- table(groups)
+  
+  # Per-observation effective weights = w_g / n_g
+  obs_w <- weights[as.character(groups)] / n_g[as.character(groups)]
+  
+  # Gradient: sum_i obs_w[i] * exp(eta_i) * x_i
+  grad <- as.numeric(t(X) %*% (obs_w * exp_eta))
+  names(grad) <- colnames(X)
   
   # Delta-method SE
-  sqrt(as.numeric(t(grad) %*% Beta_cov %*% grad))
+  se <- sqrt(as.numeric(t(grad) %*% Beta_cov %*% grad))
+  
+  return(se)
 }
-
-get_eta <- function(Beta, X) X %*% Beta
-
-get_mu <- function(eta, t) t * exp(eta)
   
 log_likelihood <- function(Beta, X, Y, t) {
   
@@ -130,7 +153,8 @@ likelihood <- function(Beta, X, Y, t) exp(log_likelihood(Beta, X, Y, t))
 safe_max <- function(x, fallback) if (length(x) == 0) fallback else max(x)
 safe_min <- function(x, fallback) if (length(x) == 0) fallback else min(x)
 
-get_psi_grid <- function(model, 
+get_psi_grid <- function(model,
+                         X,
                          weights, 
                          num_std_errors, 
                          step_size,
@@ -139,9 +163,9 @@ get_psi_grid <- function(model,
   
   Beta_MLE <- get_Beta_MLE(model)
   
-  psi_MLE <- get_psi(Beta_MLE, weights)
+  psi_MLE <- get_psi(Beta_MLE, X, weights)
   
-  psi_MLE_SE <- get_psi_MLE_SE(model, weights)
+  psi_MLE_SE <- get_psi_MLE_SE(model, weights, X)
   
   psi_endpoints <- psi_MLE + num_std_errors * psi_MLE_SE
   
@@ -163,13 +187,13 @@ get_psi_grid <- function(model,
   return(psi_grid)
 }
 
-# Beta_hat ----------------------------------------------------------------
-
 safe_auglag <- possibly(nloptr::auglag)
 
-Beta_hat_con_fn_template <- function(weights, G, psi) {
+# Beta_hat ----------------------------------------------------------------
+
+Beta_hat_con_fn_template <- function(X, weights, psi) {
   
-  function(Beta) get_psi(Beta, weights) - psi
+  function(Beta) get_psi(Beta, X, weights) - psi
 }
 
 Beta_hat_obj_fn_template <- function(omega_hat, X, Y, t) {
@@ -195,59 +219,20 @@ get_Beta_hat <- function(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess) {
   
 # omega_hat ---------------------------------------------------------------
 
-get_omega_hat <- function(psi_MLE, weights, n_covariates,
-                          v_sampler = function(n) rgamma(n, shape = 2, rate = 2),
-                          gamma_sampler = function(n) rnorm(n, 0, 1),
-                          B = 20) {
-  G <- length(weights)
-  # 1) draw base positives
-  v <- v_sampler(G)
-  denom <- sum(weights * v)
-  if (denom <= 0) stop("Denominator non-positive.")
-  cscale <- psi_MLE / denom
-  u0 <- cscale * v
-  beta0 <- log(u0)
+omega_hat_con_fn_template <- function(X, weights, psi_MLE) {
   
-  # 2) clamp / project u so that corresponding beta in [-B, B]
-  lower_u <- exp(-B)
-  upper_u <- exp(B)
-  clamped <- (u0 < lower_u) | (u0 > upper_u)
+  function(omega_hat) get_psi(omega_hat, X, weights) - psi_MLE
+}
+
+get_omega_hat <- function(omega_hat_con_fn, init_guess) {
   
-  if (any(clamped)) {
-    # set clamped u to bounds; solve for multiplier for the remaining indices
-    u <- u0
-    u[ u < lower_u ] <- lower_u
-    u[ u > upper_u ] <- upper_u
-    
-    # Now find multiplier c2 on the unclamped indices to satisfy sum(weights * u) = psi_MLE
-    unclamped_idx <- which(!clamped)
-    if (length(unclamped_idx) == 0) {
-      # all clamped: check feasibility
-      total_clamped_sum <- sum(weights * u)
-      if (abs(total_clamped_sum - psi_MLE) > 1e-12) {
-        stop("Constraint infeasible after clamping.")
-      }
-    } else {
-      # solve for c2: sum(weights_clamped * u_clamped) + c2 * sum(weights_unclamped * v_unclamped) = psi_MLE
-      sum_clamped <- sum(weights[clamped] * u[clamped])
-      sum_unclamped_wv <- sum(weights[unclamped_idx] * v[unclamped_idx])
-      c2 <- (psi_MLE - sum_clamped) / sum_unclamped_wv
-      if (c2 <= 0) {
-        # If c2 <= 0, the clamp bounds are too tight; fall back to mild epsilon floor (safe)
-        eps <- 1e-8
-        u <- pmax(u, eps)
-        c2 <- (psi_MLE - sum(weights[clamped] * u[clamped])) / sum_unclamped_wv
-        if (c2 <= 0) stop("Unable to find feasible c2 — adjust B or v_sampler.")
-      }
-      u[unclamped_idx] <- c2 * v[unclamped_idx]
-    }
-  } else {
-    u <- u0
-  }
-  
-  beta <- log(u)
-  gammas <- gamma_sampler(n_covariates)
-  c(beta, gammas)
+  safe_auglag(
+    x0 = init_guess,
+    fn = function(omega_hat) 0,
+    heq = omega_hat_con_fn,
+    localsolver = "SLSQP",
+    control = list(xtol_rel = 1e-8, maxeval = 1000),
+    deprecatedBehavior = FALSE)$par
 }
 
 # Integrated Log-Likelihood ---------------------------------------------------
@@ -255,6 +240,7 @@ get_omega_hat <- function(psi_MLE, weights, n_covariates,
 run_branch_side <- function(direction, 
                             omega_hat,
                             data,
+                            X,
                             weights,
                             psi_MLE,
                             psi_grid) {
@@ -266,54 +252,25 @@ run_branch_side <- function(direction,
     psi_grid[psi_grid > psi_MLE]
   }
   
-  covariates <- data |> select(starts_with("X"))
-  n_per_group <- table(data$group)
-  G <- length(n_per_group)
-  
-  X <- get_X(covariates, n_per_group)
   Y <- data$Y
   t <- data$t
   
   log_L_tilde_vals <- c()
   
-  # --- Compute feasible Beta for first psi ---
-  psi_start <- psi_working_grid[1]
-  Beta_hat_con_fn <- Beta_hat_con_fn_template(weights, G, psi_start)
-  Beta_hat_obj_fn <- Beta_hat_obj_fn_template(omega_hat, X, Y, t)
-  
-  # Initial guess: attempt feasible solution
-  init_guess <- tryCatch({
-    get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, omega_hat)
-  }, error = function(e) {
-    message("[WARN] Initial guess not feasible; projecting to feasible point")
-    # Simple projection: scale intercepts to satisfy psi constraint
-    delta <- psi_start - sum(weights * exp(omega_hat[1:G]))
-    omega_hat[1:G] <- omega_hat[1:G] + log(1 + delta / sum(exp(omega_hat[1:G])))
-    omega_hat
-  })
+  init_guess <- omega_hat
   
   # --- Loop through psi grid ---
   for (psi in psi_working_grid) {
     
-    Beta_hat_con_fn <- Beta_hat_con_fn_template(weights, G, psi)
+    Beta_hat_con_fn <- Beta_hat_con_fn_template(X, weights, psi)
     Beta_hat_obj_fn <- Beta_hat_obj_fn_template(init_guess, X, Y, t)
     
-    # Attempt to compute Beta_hat; project if infeasible
-    Beta_hat <- tryCatch({
-      get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess)
-    }, error = function(e) {
-      message("[WARN] Step infeasible at psi = ", psi, "; projecting solution")
-      # Simple projection: scale intercepts
-      delta <- psi - sum(weights * exp(init_guess[1:G]))
-      init_guess[1:G] <- init_guess[1:G] + log(1 + delta / sum(exp(init_guess[1:G])))
-      init_guess
-    })
+    Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess)
     
     log_L_tilde <- log_likelihood(Beta_hat, X, Y, t)
     
     log_L_tilde_vals <- c(log_L_tilde_vals, log_L_tilde)
     
-    # Update initial guess for next step
     init_guess <- Beta_hat
   }
   
@@ -326,62 +283,9 @@ run_branch_side <- function(direction,
   list(psi = psi_working_grid, Integrated = log_L_tilde_vals)
 }
 
-# run_branch_side <- function(direction, 
-#                             omega_hat,
-#                             data,
-#                             weights,
-#                             psi_MLE,
-#                             psi_grid) {
-#   
-#   psi_working_grid <- if (direction == "left") {
-#     
-#     rev(psi_grid[psi_grid <= psi_MLE])
-#   } else {
-#     
-#     psi_grid[psi_grid > psi_MLE]
-#   }
-#   
-#   covariates <- data |> 
-#     select(starts_with("X"))
-#   
-#   n_per_group <- table(data$group)
-#   
-#   X <- get_X(covariates, n_per_group)
-#   
-#   Y <- data$Y
-#   
-#   t <- data$t
-#   
-#   log_L_tilde_vals <- c()
-#   
-#   init_guess <- omega_hat
-#   
-#   for (psi in psi_working_grid) {
-#     
-#     Beta_hat_con_fn <- Beta_hat_con_fn_template(weights, G, psi)
-#     
-#     Beta_hat_obj_fn <- Beta_hat_obj_fn_template(omega_hat, X, Y, t)
-#     
-#     Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess)
-#     
-#     log_L_tilde <- log_likelihood(Beta_hat, X, Y, t)
-#     
-#     log_L_tilde_vals <- c(log_L_tilde_vals, log_L_tilde)
-#     
-#     init_guess <- Beta_hat
-#   }
-#   
-#   if (direction == "left") {
-#     
-#     psi_working_grid <- rev(psi_working_grid)
-#     log_L_tilde_vals <- rev(log_L_tilde_vals)
-#   }
-#   
-#   list(psi = psi_working_grid, Integrated = log_L_tilde_vals)
-# }
-
 compute_IL_branch <- function(omega_hat,
                               data,
+                              X,
                               weights,
                               psi_MLE,
                               psi_grid) {
@@ -391,6 +295,7 @@ compute_IL_branch <- function(omega_hat,
     direction = "left", 
     omega_hat = omega_hat,
     data      = data,
+    X         = X,
     weights   = weights,
     psi_MLE   = psi_MLE,
     psi_grid  = psi_grid
@@ -401,6 +306,7 @@ compute_IL_branch <- function(omega_hat,
     direction = "right", 
     omega_hat = omega_hat,
     data      = data,
+    X         = X,
     weights   = weights,
     psi_MLE   = psi_MLE,
     psi_grid  = psi_grid
@@ -415,26 +321,6 @@ compute_IL_branch <- function(omega_hat,
   out <- out[order(out$psi), , drop = FALSE]
   rownames(out) <- NULL
   out
-}
-
-flag_curve_outliers <- function(df, x_col = "x", y_col = "y", remove = FALSE, span = 0.3, threshold = 3) {
-  stopifnot(x_col %in% names(df), y_col %in% names(df))
-  x <- df[[x_col]]
-  y <- df[[y_col]]
-  
-  # fit smooth curve
-  fit <- loess(y ~ x, span = span)
-  y_hat <- predict(fit, x)
-  
-  # standardized residuals
-  res <- y - y_hat
-  zres <- (res - mean(res, na.rm = TRUE)) / sd(res, na.rm = TRUE)
-  
-  outlier <- abs(zres) > threshold
-  df$outlier <- outlier
-  if (remove) df <- df[!outlier, , drop = FALSE] |> 
-    dplyr::select(-outlier)
-  df
 }
 
 get_log_L_bar <- function(IL_branches) {
@@ -461,13 +347,14 @@ get_log_L_bar <- function(IL_branches) {
               branches_matrix = branches_matrix))
 }
 
-get_integrated_LL <- function(config, data, weights) {
+get_integrated_LL <- function(config, data, X, weights) {
   
   invisible(list2env(config$optimization_specs$IL, env = environment()))
   
-  model <- fit_model(data)
+  model <- fit_model(config, data)
   
-  psi_grid <- get_psi_grid(model, 
+  psi_grid <- get_psi_grid(model,
+                           X,
                            weights, 
                            num_std_errors, 
                            step_size,
@@ -476,14 +363,9 @@ get_integrated_LL <- function(config, data, weights) {
   
   Beta_MLE <- get_Beta_MLE(model)
   
-  G <- nlevels(data$group)
+  psi_MLE <- get_psi(Beta_MLE, X, weights)
   
-  n_covariates <- data |> 
-    select(starts_with("X")) |> 
-    names() |> 
-    length()
-  
-  psi_MLE <- get_psi(Beta_MLE, weights)
+  omega_hat_con_fn <- omega_hat_con_fn_template(X, weights, psi_MLE)
   
   num_branches <- chunk_size * num_workers
   
@@ -499,11 +381,14 @@ get_integrated_LL <- function(config, data, weights) {
                            packages = "nloptr")
   ) %dofuture% {
     
-    omega_hat <- get_omega_hat(psi_MLE, weights, n_covariates)
+    init_guess <- rnorm(length(Beta_MLE))
+    
+    omega_hat <- get_omega_hat(omega_hat_con_fn, init_guess)
     
     IL_branch <- compute_IL_branch(
       omega_hat = omega_hat,
       data      = data,
+      X         = X,
       weights   = weights,
       psi_MLE   = psi_MLE,
       psi_grid  = psi_grid
@@ -520,36 +405,29 @@ get_integrated_LL <- function(config, data, weights) {
   
   list(log_L_bar_df = log_L_bar$df,
        branches_matrix = log_L_bar$branches_matrix,
-       IL_branches  = IL_branches,
-       omega_hat    = omega_hat)
+       IL_branches = IL_branches,
+       omega_hat = omega_hat)
 }
 
 # Profile Log-Likelihood --------------------------------------------------
 
 compute_profile_branch <- function(direction,
-                                   data,
+                                   X,
+                                   Y,
+                                   t,
+                                   Beta_MLE,
                                    weights,
                                    step_size,
                                    fine_step_size,
                                    fine_window,
                                    alpha) {
   
-  covariates <- data |> select(starts_with("X"))
-  n_per_group <- table(data$group)
-  G <- length(n_per_group)
-  X <- get_X(covariates, n_per_group)
-  Y <- data$Y
-  t <- data$t
-  
-  model <- fit_model(data)
-  Beta_MLE <- get_Beta_MLE(model)
-  
   log_L_p_max <- log_likelihood(Beta_MLE, X, Y, t)
   crit <- qchisq(1 - alpha, df = 1) / 2
   stopping_val <- log_L_p_max - crit
   log_L_p <- log_L_p_max
   
-  psi_MLE <- get_psi(Beta_MLE, weights)
+  psi_MLE <- get_psi(Beta_MLE, X, weights)
   psi_vals <- numeric(0)
   log_L_p_vals <- numeric(0)
   
@@ -566,31 +444,10 @@ compute_profile_branch <- function(direction,
   
   while (log_L_p >= stopping_val) {
     # build objective and constraint *functions* for current psi
-    Beta_hat_con_fn <- Beta_hat_con_fn_template(weights, G, psi)
+    Beta_hat_con_fn <- Beta_hat_con_fn_template(X, weights, psi)
     Beta_hat_obj_fn <- Beta_hat_obj_fn_template(Beta_MLE, X, Y, t)
     
-    # call constrained estimator, but protect against failure
-    Beta_hat_try <- tryCatch(
-      {
-        get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess)
-      },
-      error = function(e) {
-        message("[WARN] get_Beta_hat failed at psi = ", psi, " : ", conditionMessage(e))
-        NULL
-      },
-      warning = function(w) {
-        message("[WARN] get_Beta_hat warning at psi = ", psi, " : ", conditionMessage(w))
-        invokeRestart("muffleWarning")
-      }
-    )
-    
-    if (is.null(Beta_hat_try)) {
-      # If constraint infeasible or optimizer failed, stop extending the profile
-      message("[INFO] Stopping profile branch early at psi = ", psi)
-      break
-    }
-    
-    Beta_hat <- Beta_hat_try
+    Beta_hat <- get_Beta_hat(Beta_hat_obj_fn, Beta_hat_con_fn, init_guess)
     
     # Evaluate profile log-likelihood using Beta_hat
     log_L_p <- log_likelihood(Beta_hat, X, Y, t)
@@ -618,11 +475,17 @@ compute_profile_branch <- function(direction,
   list(psi = psi_vals, Profile = log_L_p_vals)
 }
 
-get_profile_LL <- function(config, data, weights) {
+get_profile_LL <- function(config, data, X, weights) {
   
   invisible(list2env(config$optimization_specs$PL, environment()))
   
   alpha <- min(alpha_levels)
+  
+  Y <- data$Y
+  t <- data$t
+  
+  model <- fit_model(config, data)
+  Beta_MLE <- get_Beta_MLE(model)
   
   result <- foreach(
     dir = c("left", "right"),
@@ -637,7 +500,10 @@ get_profile_LL <- function(config, data, weights) {
     
     compute_profile_branch(
       direction      = dir,
-      data           = data,
+      X              = X,
+      Y              = Y,
+      t              = t,
+      Beta_MLE       = Beta_MLE,
       weights        = weights,
       step_size      = step_size,
       fine_step_size = fine_step_size,
@@ -665,8 +531,6 @@ get_report_objects <- function(iter_dir) {
   
   integrated_LL <- readRDS(here(results_dir, "integrated_LL.rds"))
   profile_LL <- readRDS(here(results_dir, "profile_LL.rds"))
-  
-  # log_L_bar_df <- flag_curve_outliers(integrated_LL$log_L_bar_df, x_col = "psi", y_col = "Integrated", remove = TRUE)
   
   log_L_bar_df <- integrated_LL$log_L_bar_df
   

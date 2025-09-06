@@ -8,28 +8,28 @@ experiment:
   description: |
     Estimate group-specific Poisson rates within a fixed-effects regression with covariates. Observed counts are modeled with known exposure times (offsets), categorical indicators for groups, and additional covariates. Each group has its own intercept and slope for at least one covariate, while other covariate effects can be shared across groups. Group-level weights are applied when forming summaries such as weighted sums or averages of estimated rates. Group rates can be evaluated at particular covariate values (reference values) or marginalized over a covariate distribution.
 model:
-  seed: 6085
+  seed: 3481
   groups:
-    A: 3
-    B: 3
-    C: 3
+    A: 13
+    B: 14
+    C: 11
+    D: 15
+    E: 12
   intercepts:
     type: heterogeneous
     symbol: α
     distribution:
       name: rnorm
       args:
-      - 0.0
-      - 0.2
+      - 1.5
+      - 0.5
   covariates:
   - type: homogeneous
     variable:
       symbol: X1
       distribution:
-        name: runif
-        args:
-        - -1.0
-        - 1.0
+        name: rexp
+        args: 1.0
     coefficient:
       symbol: γ1
       distribution:

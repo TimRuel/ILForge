@@ -72,5 +72,7 @@ Beta_0 <- readRDS(here(true_params_dir, "Beta_0.rds"))
 data <- generate_data(config_snapshot, Beta_0)
 
 # Save the generated data
-saveRDS(data, here(data_dir, "data.rds"))
-message("[✓] Saved simulated data to: ", here(data_dir, "data.rds"))
+save_list_objects(data, data_dir)
+message("[✓] Saved simulated data to: ", data_dir)
+message("[INFO] Saved objects: ", paste(names(data), collapse = ", "))
+

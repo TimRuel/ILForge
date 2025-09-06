@@ -123,5 +123,6 @@ generate_data <- function(config, Beta_0) {
     bind_cols(covariates) |> 
     add_column(Y = Y)
   
-  return(data)
+  return(list(data = data,
+              X = X))
 }

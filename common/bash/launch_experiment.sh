@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --mem-per-cpu=500M
 #SBATCH --ntasks-per-node=64
-#SBATCH --array=0-1999
+#SBATCH --array=0-1
 
 # ===============================
 # ✅ Validate CLI arguments
