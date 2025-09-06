@@ -1,127 +1,134 @@
 # applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/helpers/truth_utils.R
 
-# Generate group labels automatically
-generate_group_labels <- function(n_groups, style = "auto_upper") {
-  if (is.character(style) && length(style) == 1) {
-    if (style == "auto_upper") {
-      # e.g., A, B, ..., Z, AA, AB, ...
-      labels <- character(n_groups)
-      for (i in seq_len(n_groups)) {
-        num <- i - 1
-        name <- ""
-        repeat {
-          name <- paste0(LETTERS[(num %% 26) + 1], name)
-          num <- num %/% 26 - 1
-          if (num < 0) break
-        }
-        labels[i] <- name
-      }
-      return(labels)
-    } else if (style == "auto_lower") {
-      return(tolower(generate_group_labels(n_groups, "auto_upper")))
-    } else if (style == "auto_num") {
-      return(as.character(seq_len(n_groups)))
-    } else {
-      stop(sprintf("Unknown label style: %s", style))
-    }
-  } else if (length(style) == n_groups) {
-    return(as.character(style))
-  } else {
-    stop("Labels must be a known style keyword or a vector of length n_groups.")
-  }
+# Generic sampler for config blocks like:
+#   distribution: { name: rnorm, args: [0,1] }
+sample_from_config <- function(dist_config, n = 1) {
+  dist_fun <- match.fun(dist_config$name)
+  args <- dist_config$args
+  if (is.null(args)) args <- list()
+  
+  # Combine n with args; if args is a vector, convert to list
+  if (is.vector(args) && !is.list(args)) args <- as.list(args)
+  out <- do.call(dist_fun, c(list(n = n), args))
+  
+  return(out)
 }
 
-# Generate group weights
-generate_group_weights <- function(cfg) {
-  weight_cfg <- cfg$weights
-  n_groups <- cfg$model$groups$n_groups
-  
-  if (is.null(weight_cfg$distribution) || is.null(weight_cfg$args)) {
-    stop("Weight distribution and args must be specified in config.")
+filter_by_greek <- function(mat, greek_symbol) {
+  if (is.null(rownames(mat))) {
+    stop("Input matrix must have rownames.")
   }
   
-  dist_fun <- match.fun(weight_cfg$distribution)
-  raw_weights <- do.call(dist_fun, c(list(n = n_groups), as.list(weight_cfg$args)))
+  # get rownames
+  rn <- rownames(mat)
   
-  if (!is.null(weight_cfg$normalize_mean_to)) {
-    weights <- raw_weights / mean(raw_weights) * weight_cfg$normalize_mean_to
-  } else if (!is.null(weight_cfg$normalize_sum_to)) {
-    weights <- raw_weights / sum(raw_weights) * weight_cfg$normalize_sum_to
-  } else {
-    weights <- raw_weights
-  }
+  # keep rows where rowname starts with the greek symbol
+  matches <- startsWith(rn, greek_symbol)
   
-  labels <- generate_group_labels(n_groups, cfg$model$groups$labels)
-  names(weights) <- labels
-  return(weights)
+  # extract as named vector
+  res <- mat[matches, , drop = TRUE]
+  names(res) <- rn[matches]
+  res
 }
 
-expand_n_per_group <- function(n_per_group, n_groups) {
-  if (length(n_per_group) == 1) {
-    return(rep(n_per_group, n_groups))
+# Generate group weights  (reads from config$model$weights)
+generate_group_weights <- function(config) {
+  weight_config <- config$model$weights
+  n_per_group <- unlist(config$model$groups)
+  G <- length(n_per_group)
+  
+  if (is.null(weight_config$distribution) || is.null(weight_config$distribution$name))
+    stop("Weight distribution must be specified as list(distribution=list(name=..., args=[...])).")
+  
+  raw <- sample_from_config(weight_config$distribution, G)
+  
+  if (!is.null(weight_config$normalize_mean_to)) {
+    weights <- raw / mean(raw) * weight_config$normalize_mean_to
+  } else if (!is.null(weight_config$normalize_sum_to)) {
+    weights <- raw / sum(raw) * weight_config$normalize_sum_to
+  } else {
+    weights <- raw
   }
-  if (length(n_per_group) < n_groups) {
-    # Repeat pattern until length matches
-    return(rep_len(n_per_group, n_groups))
-  }
-  if (length(n_per_group) == n_groups) {
-    return(n_per_group)
-  }
-  stop("n_per_group must be length 1, a divisor of n_groups, or exactly n_groups.")
+  
+  names(weights) <- names(n_per_group)
+  weights
 }
 
-# Master function
-generate_true_parameters <- function(cfg) {
-  n_groups <- cfg$model$groups$n_groups
-  labels <- generate_group_labels(n_groups, cfg$model$groups$labels)
+get_Beta_0 <- function(config) {
   
-  # --- Intercepts ---
-  intercept_cfg <- cfg$model$true_params$Beta_0$intercepts
-  dist_fun <- match.fun(intercept_cfg$distribution)
-  intercepts <- do.call(dist_fun, c(list(n = n_groups), as.list(intercept_cfg$args)))
-  if (!is.null(intercept_cfg$scale) && intercept_cfg$scale == "log") {
-    theta_0 <- exp(intercepts)
-  } else {
-    theta_0 <- intercepts
-    intercepts <- log(intercepts)
-  }
-  names(theta_0) <- labels
+  n_per_group <- unlist(config$model$groups)
+  group_labels <- names(n_per_group)
+  G <- length(n_per_group)
+  covs <- config$model$covariates
+  homo_covs <- Filter(\(c) c$type == "homogeneous", covs)
+  hetero_covs <- Filter(\(c) c$type == "heterogeneous", covs)
   
-  # --- Coefficients ---
-  coef_cfg <- cfg$model$true_params$Beta_0$coefficients
-  n_covariates <- length(cfg$model$covariates)
+  # ----- Generate coefficients for Beta_0 -----
+  # Order: heterogeneous intercepts (α), homogeneous slopes (γ), heterogeneous slopes (ζ)
   
-  if (!is.null(coef_cfg$mode) && coef_cfg$mode == "fixed") {
-    # fixed vector applied to all groups
-    coefficients <- coef_cfg$args
-  } else if (!is.null(coef_cfg$mode) && coef_cfg$mode == "sample") {
-    # draw coefficients from a distribution
-    if (is.null(coef_cfg$distribution) || is.null(coef_cfg$args)) {
-      stop("Coefficient sampling requires 'distribution' and 'args'")
-    }
-    dist_fun <- match.fun(coef_cfg$distribution)
-    coefficients <- do.call(dist_fun, c(list(n = n_covariates), as.list(coef_cfg$args)))
-  } else {
-    stop("Unknown or missing 'mode' for coefficients")
-  }
+  # --- 1. Heterogeneous intercepts ---
+  alpha_g <- sample_from_config(config$model$intercepts$distribution, G)
   
-  names(coefficients) <- sapply(cfg$model$covariates, `[[`, "name")
+  # --- 2. Homogeneous slopes ---
+  gamma <- sapply(homo_covs, function(c) sample_from_config(c$coefficient$distribution, 1))
   
-  # --- Combine intercept + coefficients into Beta_0 matrix ---
-  Beta_0 <- matrix(c(intercepts, coefficients))
-  rownames(Beta_0) <- c(labels, names(coefficients))
+  # --- 3. Heterogeneous slopes ---
+  zeta_g <- c()
+  for (cov in hetero_covs) {
+    zeta_g <- c(zeta_g, sample_from_config(cov$coefficient$distribution, G))
+  }  
   
-  # --- Weights and n_per_group ---
-  weights <- generate_group_weights(cfg)
-  n_per_group <- expand_n_per_group(cfg$model$groups$n_per_group$args, n_groups)
-  n_per_group <- setNames(n_per_group, labels)
+  # --- 5. Concatenate Beta vector ---
+  Beta_vals <- c(alpha_g, gamma, zeta_g)
   
-  # --- Output ---
+  # --- 6. Assign rownames with symbols and "_group" suffixes ---
+  Beta_names <- c(
+    paste0(config$model$intercepts$symbol, "_", group_labels), # α_g
+    sapply(homo_covs, function(c) c$coefficient$symbol), # γ
+    unlist(lapply(hetero_covs, function(c) paste0(c$coefficient$symbol, "_", group_labels))) # ζ_g
+  )
+  
+  # --- 7. Filter missing values and stack into a matrix ---
+  Beta_0 <- Beta_vals |> 
+    setNames(Beta_names) |> 
+    as.matrix(ncol = 1)
+  
+  return(Beta_0)
+}
+
+compute_true_marginal_rates <- function(config, Beta_0) {
+  
+  group_labels <- names(config$model$groups)
+  G <- length(group_labels)
+  n_mc <- as.numeric(config$model$evaluation$marginal$n_mc)
+  n_per_group <- rep(n_mc, G)
+  names(n_per_group) <- group_labels
+  
+  X_mc <- get_X(config, Beta_0, n_per_group)
+  
+  eta_mc <- X_mc %*% Beta_0
+  colnames(eta_mc) <- "eta"
+    
+  theta_0 <- eta_mc |> 
+    as_tibble(rownames = "group") |> 
+    group_by(group) |> 
+    summarise(mean_exp = mean(exp(eta)), .groups = "drop") |> 
+    deframe()
+
+  return(theta_0)
+}
+
+generate_true_parameters <- function(config) {
+  
+  Beta_0 <- get_Beta_0(config)
+
+  weights <- generate_group_weights(config)
+  
+  theta_0 <- compute_true_marginal_rates(config, Beta_0)
+  
   list(
-    Beta_0      = Beta_0,    # matrix: (# groups + # covariates) x 1
-    theta_0     = theta_0,   # exp(intercepts) for Poisson rates
-    weights     = weights,
-    n_per_group = n_per_group
+    Beta_0  = Beta_0,  # stacked coefficient vector
+    theta_0 = theta_0, # marginal rates per group
+    weights = weights  # named by group
   )
 }
-

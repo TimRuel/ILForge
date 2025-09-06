@@ -66,9 +66,10 @@ message("[✓] Saved config snapshot to: ", config_snapshot_path)
 # ✅ Generate new data
 # -------------------------------
 message("[INFO] Generating new data for iteration: ", iter_id)
-
-# Pass the whole config snapshot AND the true_params_dir so generate_data() can read what it needs
-data <- generate_data(config_snapshot, true_params_dir)
+iter_seed <- get_seed_for_iter(config_snapshot$model$seed, config_snapshot$experiment$iter_id)
+set.seed(iter_seed)
+Beta_0 <- readRDS(here(true_params_dir, "Beta_0.rds"))
+data <- generate_data(config_snapshot, Beta_0)
 
 # Save the generated data
 saveRDS(data, here(data_dir, "data.rds"))

@@ -6,63 +6,74 @@ experiment:
   sim_id: ~
   iter_id: ~
   description: >
-    Estimate group-specific Poisson rates within a fixed-effects regression that includes covariates.
+    Estimate group-specific Poisson rates within a fixed-effects regression with covariates.
     Observed counts are modeled with known exposure times (offsets), categorical indicators for groups,
-    and additional covariates. Group effects are estimated jointly with common covariate effects (shared slopes).
-    Group-level weights can vary and are applied when forming summaries (e.g., weighted sums or averages
-    of estimated rates). Rates can be evaluated at particular covariate values (e.g., reference values
-    or sample means) or integrated/marginalized over a covariate distribution.
-
-seed: 1762
+    and additional covariates. Each group has its own intercept and slope for at least one covariate,
+    while other covariate effects can be shared across groups. Group-level weights are applied when
+    forming summaries such as weighted sums or averages of estimated rates. Group rates can be evaluated
+    at particular covariate values (reference values) or marginalized over a covariate distribution.
 
 model:
+  
+  seed: 6085
+
   groups:
-    n_groups: 10
-    n_per_group:
-      mode: fixed                  # options: fixed, sample
-      args: 3                      # if fixed → single integer; if sample → [min, max] or distribution spec
-    labels: auto_upper             # Options: auto_upper, auto_lower, auto_num, or explicit list
+    A: 3
+    B: 3
+    C: 3
+    
+  intercepts:
+    type: heterogeneous # Can be either "homogeneous" (fixed across all groups) or "heterogeneous" (allowed to vary across all groups)
+    symbol: α
+    distribution: 
+      name: rnorm
+      args: [0.0, 0.2]
 
   covariates:
-    - name: X1
-      type: continuous
-      distribution: rnorm
-      args: [0, 1]                
-    - name: X2
-      type: continuous
-      distribution: runif
-      args: [-1.0, 1.0]                
-                 
-  true_params:
-    Beta_0:
-      # Each element will be a vector: intercept + coefficients
-      intercepts:
-        distribution: runif
-        args: [1.0, 5.0]
-        scale: rate                # Options: "log" (draw log-rate) or "rate" (draw theta directly)
-      coefficients:
-        # mode: fixed            
-        # args: [0.2, -0.1]        
-        mode: sample
-        distribution: runif
-        args: [-1.0, 1.0]
-        
-exposure:
-  name: t
-  distribution: runif
-  args: [2, 4]                    # t_i ~ U(1, 3)
+    - type: homogeneous 
+      variable:
+        symbol: X1
+        distribution:
+          name: runif
+          args: [-1.0, 1.0]
+      coefficient:
+          symbol: γ1
+          distribution: 
+            name: rnorm
+            args: [0.2, 0.05]
 
-weights:
-  distribution: runif             # alpha_g ~ U(1, 10)
-  args: [1, 10]
-  normalize_mean_to: 1.0
+    - type: heterogeneous 
+      variable:
+        symbol: X2
+        distribution:
+          name: rnorm
+          args: [0.0, 1.0]
+      coefficient:
+          symbol: ζ2
+          distribution: 
+            name: rnorm
+            args: [0.5, 0.1]
 
-evaluation:
-  mode: reference                 # options: reference, marginal
-  reference:
-    xstar:
-      X1: 0.0
-      X2: 0.0
-  marginal:
-    over: sample                  # options: sample (use simulated X), group (average within group)
-    summary: mean
+  exposure:
+    symbol: t
+    distribution: 
+      name: runif
+      args: [2, 4]                     # t_i ~ Uniform(2,4)
+
+  weights:
+    symbol: w
+    distribution: 
+      name: runif               # weights for group-level summaries
+      args: [1, 10]
+    normalize_mean_to: 1.0
+
+  evaluation:
+    mode: marginal                  # options: reference, marginal
+    reference:
+      xstar:
+        X1: 0.0
+        X2: 0.0
+    marginal:
+      over: sample                   # options: sample (use simulated X), group (average within group)
+      summary: mean
+      n_mc: 1e6
