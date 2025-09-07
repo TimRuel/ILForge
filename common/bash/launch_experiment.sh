@@ -66,6 +66,9 @@ module load gdal/3.7.0-gcc-12.3.0
 module load nlopt/2.7.1-gcc-12.3.0
 module load git/2.37.2-gcc-10.4.0
 module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
 
 echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
 
