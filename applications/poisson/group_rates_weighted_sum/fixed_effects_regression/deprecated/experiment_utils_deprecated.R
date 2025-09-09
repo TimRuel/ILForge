@@ -200,7 +200,7 @@ get_search_interval <- function(model,
   
   psi_MLE_SE <- get_psi_MLE_SE(model, weights, X)
   
-  psi_MLE + c(-1, 1) * num_std_errors * psi_MLE_SE
+  psi_MLE + num_std_errors * psi_MLE_SE
 }
 
 safe_auglag <- possibly(nloptr::auglag)
@@ -332,16 +332,25 @@ run_branch_side <- function(X,
                             weights,
                             omega_hat,
                             init_guess, 
-                            psi_grid) {
+                            increment,
+                            psi_start,
+                            stopping_val) {
   
   Beta_hat_obj_fn <- Beta_hat_obj_fn_template(omega_hat, X, Y, t)
   Beta_hat_obj_fn_gr <- Beta_hat_obj_fn_gr_template(omega_hat, X, Y, t)
   
   Beta_hat_con_fn_jac <- Beta_hat_con_fn_jac_template(X, weights)
   
+  psi_vals <- c()
   log_L_b_vals <- c()
   
-  for (psi in psi_grid) {
+  init_guess <- Beta_hat_mode
+  
+  psi <- psi_start
+  
+  log_L_b <- log_likelihood(Beta_hat_mode, X, Y, t)
+  
+  while (log_L_b >= stopping_val) {
     
     Beta_hat_con_fn <- Beta_hat_con_fn_template(X, weights, psi)
     
@@ -355,47 +364,71 @@ run_branch_side <- function(X,
     
     log_L_b_vals <- c(log_L_b_vals, log_L_b)
     
+    psi_vals <- c(psi_vals, psi)
+    
     init_guess <- Beta_hat
+    
+    psi <- psi + increment
+    
+    plot(psi_vals, log_L_b_vals)
   }
   
-  list(psi = psi_grid, log_L_b = log_L_b_vals)
+  list(psi = psi_vals, log_L_b = log_L_b_vals)
 }
 
 compute_IL_branch <- function(X,         
                               Y,              
                               t,              
                               weights,       
-                              branch_params,
-                              psi_bar,
-                              psi_grid) {
+                              branch_params,   
+                              psi_bar,        
+                              increment,      
+                              crit) {
   
   psi_mode <- branch_params$psi
   Beta_hat_mode <- branch_params$Beta_hat
   omega_hat <- branch_params$omega_hat
   
-  psi_grid_left <- rev(psi_grid[psi_mode <= psi_bar])
-  psi_grid_right <- psi_grid[psi_mode > psi_bar]
+  stopping_val <- log_likelihood(Beta_hat_mode, X, Y, t) - crit
+  
+  delta <- abs(psi_bar - psi_mode)
+  
+  K <- floor(delta / abs(increment))
+  
+  if (psi_mode < psi_bar) {
+    
+    psi_start_left <- psi_bar - (K+1)*increment
+    psi_start_right <- psi_bar - K*increment
+  } else {
+    
+    psi_start_left <- psi_bar + K*increment
+    psi_start_right <- psi_bar + (K+1)*increment
+  }
   
   # Evaluate branch to the left of the peak
   left_branch <- run_branch_side(
-    X          = X,
-    Y          = Y,
-    t          = t,
-    weights    = weights,
-    omega_hat  = omega_hat,
-    init_guess = Beta_hat_mode, 
-    psi_grid   = psi_grid_left
+    X            = X,
+    Y            = Y,
+    t            = t,
+    weights      = weights,
+    omega_hat    = omega_hat,
+    init_guess   = Beta_hat_mode, 
+    increment    = -increment,
+    psi_start    = psi_start_left,
+    stopping_val = stopping_val
   )
   
   # Evaluate branch to the right of the peak
   right_branch <- run_branch_side(
-    X          = X,
-    Y          = Y,
-    t          = t,
-    weights    = weights,
-    omega_hat  = omega_hat,
-    init_guess = Beta_hat_mode, 
-    psi_grid   = psi_grid_right
+    X            = X,
+    Y            = Y,
+    t            = t,
+    weights      = weights,
+    omega_hat    = omega_hat,
+    init_guess   = Beta_hat_mode, 
+    increment    = increment,
+    psi_start    = psi_start_right,
+    stopping_val = stopping_val
   )
   
   # Combine and sort
@@ -409,9 +442,17 @@ compute_IL_branch <- function(X,
   return(branch)
 }
 
+filter_rows_by_na <- function(mat, max_na) {
+
+  na_counts <- rowSums(is.na(mat))
+  
+  mat[na_counts <= max_na, , drop = FALSE]
+}
+
 get_log_L_bar <- function(IL_branches) {
   
-  merged_df <- reduce(IL_branches, full_join, by = "psi")
+  merged_df <- reduce(IL_branches, full_join, by = "psi") |> 
+    filter_rows_by_na(5)
   
   branches_matrix <- merged_df[, -1] |>
     as.matrix() |>
@@ -437,10 +478,6 @@ get_integrated_LL <- function(config, data, X, weights) {
   
   invisible(list2env(config$optimization_specs$IL, env = environment()))
   
-  Y <- data$Y
-  
-  t <- data$t
-  
   model <- fit_model(config, data)
   
   search_interval <- get_search_interval(model,
@@ -455,6 +492,8 @@ get_integrated_LL <- function(config, data, X, weights) {
   omega_hat_con_fn <- omega_hat_con_fn_template(X, weights, psi_MLE)
   
   num_branches <- chunk_size * num_workers
+  
+  plan(multisession, workers = 12)
   
   branch_params_list <- foreach(
     
@@ -480,11 +519,8 @@ get_integrated_LL <- function(config, data, X, weights) {
   omega_hats <- lapply(branch_params_list, `[[`, 3)
   
   psi_bar <- mean(psi_modes)
-  psi_bar_SE <- sd(psi_modes)
-  psi_mode_range <- range(psi_modes)
-  psi_grid_endpoints <- psi_bar + c(-1, 1) * (max(abs(psi_modes - psi_bar)) + num_std_errors * psi_bar_SE) # Option A
-  # psi_grid_endpoints <- psi_mode_range + c(-1, 1) * num_std_errors * psi_bar_SE # Option B
-  psi_grid <- seq(psi_grid_endpoints[1], psi_grid_endpoints[2], increment)
+  
+  crit <- qchisq(1 - alpha, df = 1) / 2
   
   IL_branches <- foreach(
     
@@ -505,7 +541,8 @@ get_integrated_LL <- function(config, data, X, weights) {
       weights       = weights,
       branch_params = branch_params,
       psi_bar       = psi_bar,
-      psi_grid      = psi_grid
+      increment     = increment,
+      crit          = crit
       )
   }
   
@@ -514,8 +551,7 @@ get_integrated_LL <- function(config, data, X, weights) {
   list(log_L_bar_df = log_L_bar$df,
        branches_matrix = log_L_bar$branches_matrix,
        IL_branches = IL_branches,
-       omega_hats = omega_hats,
-       branch_modes = psi_modes)
+       omega_hat = omega_hat)
 }
 
 # Profile Log-Likelihood --------------------------------------------------

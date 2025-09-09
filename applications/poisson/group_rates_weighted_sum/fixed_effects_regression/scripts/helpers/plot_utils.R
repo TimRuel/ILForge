@@ -56,6 +56,40 @@ get_branches_plot <- function(mat) {
          y = expression("log L("*psi*")"))
 }
 
+get_branches_plot_shifted <- function(mat, crit) {
+  # shift each branch so its max is 0
+  mat_shifted <- t(apply(mat, 1, function(row) row - max(row, na.rm = TRUE)))
+  
+  psi_vals <- as.numeric(colnames(mat_shifted))
+  
+  # Make a smaller grid for x-axis labels
+  psi_grid <- seq(min(psi_vals, na.rm = TRUE),
+                  max(psi_vals, na.rm = TRUE),
+                  length.out = 10)
+  
+  df <- as.data.frame(mat_shifted)
+  df$CurveID <- paste0("Curve_", seq_len(nrow(df)))
+  
+  df_long <- df |>
+    tidyr::pivot_longer(-CurveID, names_to = "X", values_to = "Y")
+  df_long$X <- as.numeric(df_long$X)
+  
+  plot_base() +
+    theme(legend.position = "none") +
+    geom_line(
+      data = df_long,
+      aes(x = X, y = Y, group = CurveID, color = CurveID),
+      linewidth = 1
+    ) +
+    geom_hline(yintercept = -crit, color = "red") +
+    scale_x_continuous(breaks = psi_grid, labels = round(psi_grid, 2)) +
+    labs(
+      title = "Integrated Log-Likelihood Branches (shifted)",
+      x = "\u03C8",
+      y = expression("log L("*psi*")")
+    )
+}
+
 get_LL_comparison_plot <- function(stat_fns, 
                                    LL_df_long,
                                    MLE_data,
