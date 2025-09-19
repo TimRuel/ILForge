@@ -1,5 +1,155 @@
 # applications/poisson/group_rates_weighted_sum/fixed_effects_regression/scripts/helpers/experiment_utils.R
 
+make_formula <- function(config) {
+  # Build RHS parts
+  rhs_parts <- c("0", "group")
+  
+  covs <- config$model$covariates
+  homo_covs <- Filter(\(c) c$type == "homogeneous", covs)
+  hetero_covs <- Filter(\(c) c$type == "heterogeneous", covs)
+  
+  # Homogeneous covariates (same slope across groups)
+  if (length(homo_covs) > 0) {
+    homo_covs <- sapply(homo_covs, \(x) x$variable$symbol)
+    rhs_parts <- c(rhs_parts, homo_covs)
+  }
+  
+  # Heterogeneous covariates (different slope across groups, can be interpreted as interaction with group)
+  if (length(hetero_covs) > 0) {
+    hetero_covs <- sapply(hetero_covs, \(x) x$variable$symbol)
+    rhs_parts <- c(rhs_parts, paste0(hetero_covs, ":group"))
+  }
+  
+  # Add group main effect (intercepts per group)
+  rhs <- paste(rhs_parts, collapse = " + ")
+  
+  # Full formula
+  f <- as.formula(paste("Y ~", rhs))
+  
+  return(f)
+}
+
+fit_model <- function(config, data) {
+  
+  formula <- make_formula(config)
+  
+  glm(formula, offset = log(t), family = poisson(), data = data)
+}
+
+rename_coefs <- function(coef_names) {
+  # Separate intercepts, main effects, and interactions
+  intercepts   <- coef_names[!grepl("X", coef_names)]              # group names
+  main_effects <- coef_names[grepl("^X\\d+$", coef_names)]         # X1, X2, ...
+  interactions <- coef_names[grepl(":", coef_names)]               # group:X2, ...
+  
+  # Figure out which X's are fixed vs varying
+  # Fixed slopes: main effects only
+  fixed_Xs <- gsub("^X", "", main_effects)
+  # Varying slopes: from interactions
+  varying_Xs <- unique(gsub(".*:X", "", interactions))
+  
+  # Replacements
+  new_names <- character(length(coef_names))
+  
+  # Intercepts → α_group
+  new_names[match(intercepts, coef_names)] <- paste0("α_", sub("^group", "", intercepts))
+  
+  # Fixed slopes → γ#
+  new_names[match(main_effects, coef_names)] <- 
+    paste0("γ", gsub("^X", "", main_effects))
+  
+  # Varying slopes → ζ#_group
+  for (int in interactions) {
+    parts <- strsplit(int, ":")[[1]]   # e.g., c("groupA", "X2")
+    group <- sub("^group", "", parts[1])
+    xnum  <- sub("^X", "", parts[2])
+    new_names[match(int, coef_names)] <- paste0("ζ", xnum, "_", group)
+  }
+  
+  return(new_names)
+}
+
+get_Beta_MLE <- function(model) {
+  
+  coefs <- coef(model)
+  Beta_MLE <- as.matrix(coefs, ncol = 1)  # stack as single-column matrix
+  
+  rownames(Beta_MLE) <- rename_coefs(names(coefs))
+  
+  Beta_MLE
+}
+
+get_eta <- function(Beta, X) X %*% Beta
+
+get_theta <- function(Beta, X) exp(get_eta(Beta, X))
+
+get_theta_g <- function(Beta, X) {
+  
+  data.frame(theta = get_theta(Beta, X),
+             group = factor(rownames(X))) |> 
+    group_by(group) |> 
+    summarise(theta = mean(theta)) |> 
+    deframe()
+}
+
+get_mu <- function(eta, t) t * exp(eta)
+
+get_psi <- function(Beta, X, weights) {
+  
+  theta <- get_theta_g(Beta, X)
+  
+  sum(theta * weights)
+}
+
+# General delta-method version of SE(psi_hat)
+get_psi_MLE_SE <- function(model, weights, X) {
+  # Extract Beta_MLE as numeric vector
+  Beta_MLE <- drop(get_Beta_MLE(model))
+  Beta_cov <- vcov(model)
+  
+  # Group membership for each observation
+  groups <- model$data$group
+  group_labels <- levels(groups)
+  
+  # Ensure weights are a named vector (one per group)
+  if (is.null(names(weights))) {
+    if (length(weights) != length(group_labels)) {
+      stop("If 'weights' is unnamed, it must have length equal to number of groups.")
+    }
+    weights <- setNames(weights, group_labels)
+  }
+  
+  # Linear predictors and exp
+  eta <- drop(get_eta(Beta_MLE, X))
+  exp_eta <- exp(eta)
+  
+  # Group sizes
+  n_g <- table(groups)
+  
+  # Per-observation effective weights = w_g / n_g
+  obs_w <- weights[as.character(groups)] / n_g[as.character(groups)]
+  
+  # Gradient: sum_i obs_w[i] * exp(eta_i) * x_i
+  grad <- as.numeric(t(X) %*% (obs_w * exp_eta))
+  names(grad) <- colnames(X)
+  
+  # Delta-method SE
+  se <- sqrt(as.numeric(t(grad) %*% Beta_cov %*% grad))
+  
+  return(se)
+}
+  
+log_likelihood <- function(Beta, X, Y, t) {
+  
+  eta <- get_eta(Beta, X)
+  
+  mu <- get_mu(eta, t)
+  
+  sum(Y * (log(t) + eta) - mu - lgamma(Y+1))
+}
+
+likelihood <- function(Beta, X, Y, t) exp(log_likelihood(Beta, X, Y, t))
+
 # Psi Grid ----------------------------------------------------------------
 
 safe_max <- function(x, fallback) if (length(x) == 0) fallback else max(x)
@@ -135,9 +285,7 @@ get_omega_hat <- function(omega_hat_con_fn, init_guess) {
     deprecatedBehavior = FALSE)$par
 }
 
-compute_branch_params <- function(omega_hat_con_fn, init_guess, X, Y, t, weights, search_interval) {
-  
-  omega_hat <- get_omega_hat(omega_hat_con_fn, init_guess)
+get_branch_params <- function(omega_hat, X, Y, t, weights, search_interval) {
   
   Beta_hat_obj_fn <- Beta_hat_obj_fn_template(omega_hat, X, Y, t)
   Beta_hat_obj_fn_gr <- Beta_hat_obj_fn_gr_template(omega_hat, X, Y, t)
@@ -174,35 +322,6 @@ compute_branch_params <- function(omega_hat_con_fn, init_guess, X, Y, t, weights
   list(psi = psi_mode,
        Beta_hat = Beta_hat_mode,
        omega_hat = omega_hat)
-}
-
-get_branch_params_list <- function(config, data, X, weights) {
-  
-  invisible(list2env(config$optimization_specs$IL, env = environment()))
-  
-  Y <- data$Y
-  t <- data$t
-  model <- fit_model(config, data)
-  search_interval <- get_search_interval(model, X, weights, num_std_errors)
-  Beta_MLE <- get_Beta_MLE(model)
-  psi_MLE <- get_psi(Beta_MLE, X, weights)
-  
-  omega_hat_con_fn <- omega_hat_con_fn_template(X, weights, psi_MLE)
-  num_branches <- chunk_size * num_workers
-  
-  foreach(
-    i = 1:num_branches,
-    .combine = "list",
-    .multicombine = TRUE,
-    .errorhandling = "remove",
-    .options.future = list(seed = TRUE,
-                           chunk.size = chunk_size,
-                           packages = c("nloptr", "dplyr"))
-  ) %dofuture% {
-    
-    init_guess <- rnorm(length(Beta_MLE))
-    compute_branch_params(omega_hat_con_fn, init_guess, X, Y, t, weights, search_interval)
-  }
 }
 
 # Integrated Log-Likelihood ---------------------------------------------------
@@ -314,61 +433,89 @@ get_log_L_bar <- function(IL_branches) {
               branches_matrix = branches_matrix))
 }
 
-get_integrated_LL <- function(config, branch_params_list, data, X, weights) {
+get_integrated_LL <- function(config, data, X, weights) {
   
   invisible(list2env(config$optimization_specs$IL, env = environment()))
   
   Y <- data$Y
+  
   t <- data$t
+  
   model <- fit_model(config, data)
-  search_interval <- get_search_interval(model, X, weights, num_std_errors)
+  
+  search_interval <- get_search_interval(model,
+                                         X,
+                                         weights, 
+                                         num_std_errors)
+  
   Beta_MLE <- get_Beta_MLE(model)
+  
   psi_MLE <- get_psi(Beta_MLE, X, weights)
+  
+  omega_hat_con_fn <- omega_hat_con_fn_template(X, weights, psi_MLE)
+  
+  num_branches <- chunk_size * num_workers
+  
+  branch_params_list <- foreach(
+    
+    i = 1:num_branches,
+    .combine = "list",
+    .multicombine = TRUE,
+    .maxcombine = num_branches,
+    .errorhandling = "remove",
+    .options.future = list(seed = TRUE,
+                           chunk.size = chunk_size,
+                           packages = "nloptr")
+  ) %dofuture% {
+    
+    init_guess <- rnorm(length(Beta_MLE))
+    
+    omega_hat <- get_omega_hat(omega_hat_con_fn, init_guess)
+    
+    get_branch_params(omega_hat, X, Y, t, weights, search_interval)
+  }
   
   psi_modes <- sapply(branch_params_list, `[[`, 1)
   Beta_hat_modes <- lapply(branch_params_list, `[[`, 2)
   omega_hats <- lapply(branch_params_list, `[[`, 3)
   
-  # -------------------------------
-  # Define psi grid
-  # -------------------------------
   psi_bar <- mean(psi_modes)
   psi_bar_SE <- sd(psi_modes)
-  psi_grid_endpoints <- psi_bar + c(-1, 1) * (max(abs(psi_modes - psi_bar)) + num_std_errors * psi_bar_SE)
+  psi_mode_range <- range(psi_modes)
+  psi_grid_endpoints <- psi_bar + c(-1, 1) * (max(abs(psi_modes - psi_bar)) + num_std_errors * psi_bar_SE) # Option A
+  # psi_grid_endpoints <- psi_mode_range + c(-1, 1) * num_std_errors * psi_bar_SE # Option B
   psi_grid <- seq(psi_grid_endpoints[1], psi_grid_endpoints[2], increment)
   
-  # -------------------------------
-  # Inner loop: compute integrated likelihood branches
-  # -------------------------------
   IL_branches <- foreach(
+    
     branch_params = branch_params_list,
     .combine = "list",
     .multicombine = TRUE,
+    .maxcombine = num_branches,
     .errorhandling = "remove",
-    .options.future = list(
-      seed = TRUE,
-      chunk.size = chunk_size,
-      packages = c("nloptr", "dplyr")
-    )
+    .options.future = list(seed = TRUE,
+                           chunk.size = chunk_size,
+                           packages = "nloptr")
   ) %dofuture% {
+    
     compute_IL_branch(
-      X = X,
-      Y = Y,
-      t = t,
-      weights = weights,
+      X             = X,
+      Y             = Y,
+      t             = t,
+      weights       = weights,
       branch_params = branch_params,
-      psi_bar = psi_bar,
-      psi_grid = psi_grid
-    )
+      psi_bar       = psi_bar,
+      psi_grid      = psi_grid
+      )
   }
-
+  
   log_L_bar <- get_log_L_bar(IL_branches)
-
-  list(
-    log_L_bar_df = log_L_bar$df,
-    branches_matrix = log_L_bar$branches_matrix,
-    IL_branches = IL_branches
-  )
+  
+  list(log_L_bar_df = log_L_bar$df,
+       branches_matrix = log_L_bar$branches_matrix,
+       IL_branches = IL_branches,
+       omega_hats = omega_hats,
+       branch_modes = psi_modes)
 }
 
 # Profile Log-Likelihood --------------------------------------------------
@@ -446,29 +593,28 @@ compute_profile_branch <- function(direction,
 }
 
 get_profile_LL <- function(config, data, X, weights) {
-
+  
   invisible(list2env(config$optimization_specs$PL, environment()))
+  
+  alpha <- min(alpha_levels)
   
   Y <- data$Y
   t <- data$t
+  
   model <- fit_model(config, data)
   Beta_MLE <- get_Beta_MLE(model)
-  
-  alpha <- min(alpha_levels)
-  step_size_local <- step_size
-  fine_step_size_local <- fine_step_size
-  fine_window_local <- fine_window
-  Beta_MLE_length <- length(Beta_MLE)
   
   result <- foreach(
     dir = c("left", "right"),
     .combine = "list",
     .multicombine = TRUE,
+    .maxcombine = 2,
     .errorhandling = "remove",
     .options.future = list(seed = TRUE,
                            chunk.size = 1,
-                           packages = c("nloptr", "dplyr"))
+                           packages ="nloptr")
   ) %dofuture% {
+    
     compute_profile_branch(
       direction      = dir,
       X              = X,
@@ -483,13 +629,15 @@ get_profile_LL <- function(config, data, X, weights) {
     )
   }
   
-  # Combine results into a single data frame
-  profile_LL <- do.call(
-    rbind,
-    lapply(result, \(entry) data.frame(psi = entry$psi, Profile = entry$Profile))
-  )
+  profile_LL <- rbind |> 
+    do.call(lapply(result, 
+                   \(entry) {
+                     data.frame(psi = entry$psi, Profile = entry$Profile)
+                     }
+                   )
+            )
   
-  profile_LL
+  return(profile_LL)
 }
 
 get_report_objects <- function(iter_dir) {

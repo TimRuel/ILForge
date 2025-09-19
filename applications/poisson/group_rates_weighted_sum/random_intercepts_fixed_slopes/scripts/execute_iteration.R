@@ -7,7 +7,6 @@ suppressPackageStartupMessages({
   library(here)
   library(yaml)
   library(fs)
-  library(future)
   library(doFuture)
   library(foreach)
   library(nloptr)
@@ -70,30 +69,16 @@ results_dir <- here(iter_dir, "results")
 dir_create(results_dir)
 
 # -------------------------------
-# ✅ Register DoFuture backend
-# -------------------------------
-registerDoFuture()
-options(future.globals.maxSize = 1e9)
-
-# -------------------------------
 # ✅ Run integrated likelihood
 # -------------------------------
 if (!skip_integrated) {
   
-  message("🔍 Computing branch parameters...")
-  branch_params_start <- Sys.time()
-  num_workers <- config$optimization_specs$IL$num_workers
-  plan(multisession, workers = num_workers, gc = TRUE)
-  branch_params_list <- get_branch_params_list(config, data, X, weights)
-  plan(sequential)
-  saveRDS(branch_params_list, file = here(results_dir, "branch_params_list.rds"))
-  branch_params_end <- Sys.time()
-  message(sprintf("✅ Branch parameters computed (%.2f min)", as.numeric(difftime(branch_params_end, branch_params_start, units = "mins"))))
-  
   message("🔍 Running integrated likelihood...")
   il_start <- Sys.time()
-  plan(multisession, workers = num_workers, gc = TRUE)
-  integrated_LL <- get_integrated_LL(config, branch_params_list, data, X, weights)
+  num_workers <- config$optimization_specs$IL$num_workers
+  plan_strategy <- if (.Platform$OS.type == "unix") multicore else multisession
+  plan(plan_strategy, workers = I(num_workers))
+  integrated_LL <- get_integrated_LL(config, data, X, weights)
   plan(sequential)
   saveRDS(integrated_LL, file = here(results_dir, "integrated_LL.rds"))
   il_end <- Sys.time()
@@ -109,9 +94,7 @@ if (!skip_integrated) {
 if (!skip_profile) {
   message("📈 Running profile likelihood...")
   pl_start <- Sys.time()
-  plan(multisession, workers = 2)
   profile_LL <- get_profile_LL(config, data, X, weights)
-  plan(sequential)
   saveRDS(profile_LL, file = here(results_dir, "profile_LL.rds"))
   pl_end <- Sys.time()
   message(sprintf("✅ Profile likelihood complete (%.2f min)", as.numeric(difftime(pl_end, pl_start, units = "mins"))))
