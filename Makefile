@@ -3,7 +3,7 @@
 # ---------- Default Parameters ----------
 APP         ?= poisson
 ESTIMAND    ?= group_rates_weighted_sum
-MODEL				?= naive_group_rates
+MODEL		?= naive_group_rates
 EXP_ID      ?= exp_v1.0.0
 SIM_ID      ?= sim_01
 ITER_ID     ?= iter_0001
@@ -14,7 +14,7 @@ FLAGS       ?=
 MAIN               := common/scripts/main.R
 MODEL_DIR          := applications/$(APP)/$(ESTIMAND)/$(MODEL)
 EXPERIMENT_DIR     := experiments/$(EXP_ID)
-LAUNCH_SCRIPT      := common/bash/launch_experiment.sh
+LAUNCH_SCRIPT      := common/bash/launch_experiment2.sh
 SIM_DIR            := $(EXPERIMENT_DIR)/simulations/$(SIM_ID)
 SIM_REPORT_SCRIPT  := common/bash/render_sim_report.sh
 ITER_DIR           := $(SIM_DIR)/$(ITER_ID)

@@ -438,84 +438,111 @@ get_integrated_LL <- function(config, data, X, weights) {
   invisible(list2env(config$optimization_specs$IL, env = environment()))
   
   Y <- data$Y
-  
   t <- data$t
-  
   model <- fit_model(config, data)
-  
-  search_interval <- get_search_interval(model,
-                                         X,
-                                         weights, 
-                                         num_std_errors)
-  
+  search_interval <- get_search_interval(model, X, weights, num_std_errors)
   Beta_MLE <- get_Beta_MLE(model)
-  
   psi_MLE <- get_psi(Beta_MLE, X, weights)
   
   omega_hat_con_fn <- omega_hat_con_fn_template(X, weights, psi_MLE)
-  
   num_branches <- chunk_size * num_workers
   
+  # -------------------------------
+  # Outer loop: compute branch parameters
+  # -------------------------------
   branch_params_list <- foreach(
-    
     i = 1:num_branches,
     .combine = "list",
     .multicombine = TRUE,
-    .maxcombine = num_branches,
     .errorhandling = "remove",
-    .options.future = list(seed = TRUE,
-                           chunk.size = chunk_size,
-                           packages = "nloptr")
+    .options.future = list(
+      seed = TRUE,
+      chunk.size = chunk_size,
+      packages = c("nloptr", "dplyr")
+      # globals = list(
+      #   get_branch_params = get_branch_params,
+      #   get_omega_hat = get_omega_hat,
+      #   get_Beta_hat = get_Beta_hat,
+      #   Beta_hat_obj_fn_template = Beta_hat_obj_fn_template,
+      #   Beta_hat_obj_fn_gr_template = Beta_hat_obj_fn_gr_template,
+      #   Beta_hat_con_fn_jac_template = Beta_hat_con_fn_jac_template,
+      #   Beta_hat_con_fn_template = Beta_hat_con_fn_template,
+      #   log_likelihood = log_likelihood,
+      #   get_eta = get_eta,
+      #   get_theta = get_theta,
+      #   X = X,
+      #   Y = Y,
+      #   t = t,
+      #   weights = weights,
+      #   search_interval = search_interval,
+      #   omega_hat_con_fn = omega_hat_con_fn,
+      #   Beta_MLE_length = length(Beta_MLE)
+      # )
+    )
   ) %dofuture% {
-    
     init_guess <- rnorm(length(Beta_MLE))
-    
-    omega_hat <- get_omega_hat(omega_hat_con_fn, init_guess)
-    
-    get_branch_params(omega_hat, X, Y, t, weights, search_interval)
+    get_omega_hat(omega_hat_con_fn, init_guess)
+    # get_branch_params(omega_hat, X, Y, t, weights, search_interval)
   }
+
+  return(branch_params_list)
   
-  psi_modes <- sapply(branch_params_list, `[[`, 1)
-  Beta_hat_modes <- lapply(branch_params_list, `[[`, 2)
-  omega_hats <- lapply(branch_params_list, `[[`, 3)
+  # psi_modes <- sapply(branch_params_list, `[[`, 1)
+  # Beta_hat_modes <- lapply(branch_params_list, `[[`, 2)
+  # omega_hats <- lapply(branch_params_list, `[[`, 3)
   
-  psi_bar <- mean(psi_modes)
-  psi_bar_SE <- sd(psi_modes)
-  psi_mode_range <- range(psi_modes)
-  psi_grid_endpoints <- psi_bar + c(-1, 1) * (max(abs(psi_modes - psi_bar)) + num_std_errors * psi_bar_SE) # Option A
-  # psi_grid_endpoints <- psi_mode_range + c(-1, 1) * num_std_errors * psi_bar_SE # Option B
-  psi_grid <- seq(psi_grid_endpoints[1], psi_grid_endpoints[2], increment)
+  # # -------------------------------
+  # # Define psi grid
+  # # -------------------------------
+  # psi_bar <- mean(psi_modes)
+  # psi_bar_SE <- sd(psi_modes)
+  # psi_grid_endpoints <- psi_bar + c(-1, 1) * (max(abs(psi_modes - psi_bar)) + num_std_errors * psi_bar_SE)
+  # psi_grid <- seq(psi_grid_endpoints[1], psi_grid_endpoints[2], increment)
   
-  IL_branches <- foreach(
-    
-    branch_params = branch_params_list,
-    .combine = "list",
-    .multicombine = TRUE,
-    .maxcombine = num_branches,
-    .errorhandling = "remove",
-    .options.future = list(seed = TRUE,
-                           chunk.size = chunk_size,
-                           packages = "nloptr")
-  ) %dofuture% {
-    
-    compute_IL_branch(
-      X             = X,
-      Y             = Y,
-      t             = t,
-      weights       = weights,
-      branch_params = branch_params,
-      psi_bar       = psi_bar,
-      psi_grid      = psi_grid
-      )
-  }
+  # # -------------------------------
+  # # Inner loop: compute integrated likelihood branches
+  # # -------------------------------
+  # IL_branches <- foreach(
+  #   branch_params = branch_params_list,
+  #   .combine = "list",
+  #   .multicombine = TRUE,
+  #   .errorhandling = "remove",
+  #   .options.future = list(
+  #     seed = TRUE,
+  #     chunk.size = chunk_size,
+  #     packages = c("nloptr", "dplyr"),
+  #     globals = list(
+  #       compute_IL_branch = compute_IL_branch,
+  #       run_branch_side = run_branch_side,
+  #       X = X,
+  #       Y = Y,
+  #       t = t,
+  #       weights = weights,
+  #       psi_bar = psi_bar,
+  #       psi_grid = psi_grid
+  #     )
+  #   )
+  # ) %dofuture% {
+  #   compute_IL_branch(
+  #     X = X,
+  #     Y = Y,
+  #     t = t,
+  #     weights = weights,
+  #     branch_params = branch_params,
+  #     psi_bar = psi_bar,
+  #     psi_grid = psi_grid
+  #   )
+  # }
   
-  log_L_bar <- get_log_L_bar(IL_branches)
+  # log_L_bar <- get_log_L_bar(IL_branches)
   
-  list(log_L_bar_df = log_L_bar$df,
-       branches_matrix = log_L_bar$branches_matrix,
-       IL_branches = IL_branches,
-       omega_hats = omega_hats,
-       branch_modes = psi_modes)
+  # list(
+  #   log_L_bar_df = log_L_bar$df,
+  #   branches_matrix = log_L_bar$branches_matrix,
+  #   IL_branches = IL_branches,
+  #   omega_hats = omega_hats,
+  #   branch_modes = psi_modes
+  # )
 }
 
 # Profile Log-Likelihood --------------------------------------------------
@@ -593,28 +620,43 @@ compute_profile_branch <- function(direction,
 }
 
 get_profile_LL <- function(config, data, X, weights) {
-  
+
   invisible(list2env(config$optimization_specs$PL, environment()))
-  
-  alpha <- min(alpha_levels)
   
   Y <- data$Y
   t <- data$t
-  
   model <- fit_model(config, data)
   Beta_MLE <- get_Beta_MLE(model)
+  
+  alpha <- min(alpha_levels)
+  step_size_local <- step_size
+  fine_step_size_local <- fine_step_size
+  fine_window_local <- fine_window
+  Beta_MLE_length <- length(Beta_MLE)
   
   result <- foreach(
     dir = c("left", "right"),
     .combine = "list",
     .multicombine = TRUE,
-    .maxcombine = 2,
     .errorhandling = "remove",
-    .options.future = list(seed = TRUE,
-                           chunk.size = 1,
-                           packages ="nloptr")
+    .options.future = list(
+      seed = TRUE,
+      chunk.size = 1,
+      packages = c("nloptr", "dplyr"),
+      globals = list(
+        compute_profile_branch = compute_profile_branch,
+        Beta_MLE_length = Beta_MLE_length,
+        X = X,
+        Y = Y,
+        t = t,
+        weights = weights,
+        alpha = alpha,
+        step_size = step_size_local,
+        fine_step_size = fine_step_size_local,
+        fine_window = fine_window_local
+      )
+    )
   ) %dofuture% {
-    
     compute_profile_branch(
       direction      = dir,
       X              = X,
@@ -629,15 +671,13 @@ get_profile_LL <- function(config, data, X, weights) {
     )
   }
   
-  profile_LL <- rbind |> 
-    do.call(lapply(result, 
-                   \(entry) {
-                     data.frame(psi = entry$psi, Profile = entry$Profile)
-                     }
-                   )
-            )
+  # Combine results into a single data frame
+  profile_LL <- do.call(
+    rbind,
+    lapply(result, \(entry) data.frame(psi = entry$psi, Profile = entry$Profile))
+  )
   
-  return(profile_LL)
+  profile_LL
 }
 
 get_report_objects <- function(iter_dir) {

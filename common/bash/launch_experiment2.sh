@@ -7,8 +7,9 @@
 #SBATCH --job-name=experiment_sim
 #SBATCH --output=/dev/null
 #SBATCH --nodes=1
-#SBATCH --mem-per-cpu=500M
-#SBATCH --ntasks-per-node=64
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
 #SBATCH --array=0-1
 
 # ===============================
@@ -28,7 +29,7 @@ SIM_ID="$5"
 
 ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
 ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
-REQUESTED_CORES=$SLURM_NTASKS
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
 
 # ===============================
 # ✅ Resolve project root
@@ -69,6 +70,13 @@ module load chrome/114.0.5735.90
 module load git-lfs/3.3.0-gcc-10.4.0
 
 git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
 
 echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
 
@@ -120,33 +128,3 @@ Rscript --max-connections=256 "$RSCRIPT_PATH" \
   "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
 
 echo "✅ SLURM iteration complete: $ITER_ID"
-
-# # ===============================
-# # ✅ Post-processing after all array tasks complete (lock-file approach)
-# # ===============================
-# POSTPROCESS_SCRIPT="common/bash/postprocess_git_lfs.sh"
-# LOCK_DIR="experiments/${EXP_ID}/.locks"
-# mkdir -p "$LOCK_DIR"
-
-# # Each array task creates a done file
-# touch "${LOCK_DIR}/task_${SLURM_ARRAY_TASK_ID}.done"
-
-# # Only the last array task waits for all tasks to finish
-# if [[ "$SLURM_ARRAY_TASK_ID" -eq $((SLURM_ARRAY_TASK_MAX)) ]]; then
-#     echo "⏳ Last array task waiting for all other tasks to complete..."
-#     while true; do
-#         NUM_DONE=$(ls -1 "${LOCK_DIR}"/*.done 2>/dev/null | wc -l)
-#         if [[ "$NUM_DONE" -eq $((SLURM_ARRAY_TASK_MAX + 1)) ]]; then
-#             echo "📌 All array tasks completed. Running post-processing for experiment $EXP_ID..."
-#             if [[ -f "$POSTPROCESS_SCRIPT" ]]; then
-#                 "$POSTPROCESS_SCRIPT" "$EXP_ID"
-#             else
-#                 echo "❌ Post-processing script not found: $POSTPROCESS_SCRIPT"
-#             fi
-#             # Clean up done files
-#             rm -f "${LOCK_DIR}"/*.done
-#             break
-#         fi
-#         sleep 10
-#     done
-# fi
