@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(fs)
   library(future)
   library(doFuture)
+  library(future.callr)
   library(foreach)
   library(nloptr)
 })
@@ -83,7 +84,7 @@ if (!skip_integrated) {
   message("🔍 Computing branch parameters...")
   branch_params_start <- Sys.time()
   num_workers <- config$optimization_specs$IL$num_workers
-  plan(multisession, workers = num_workers, gc = TRUE)
+  plan(callr, workers = num_workers, gc = TRUE)
   branch_params_list <- get_branch_params_list(config, data, X, weights)
   plan(sequential)
   saveRDS(branch_params_list, file = here(results_dir, "branch_params_list.rds"))
@@ -92,7 +93,7 @@ if (!skip_integrated) {
   
   message("🔍 Running integrated likelihood...")
   il_start <- Sys.time()
-  plan(multisession, workers = num_workers, gc = TRUE)
+  plan(callr, workers = num_workers, gc = TRUE)
   integrated_LL <- get_integrated_LL(config, branch_params_list, data, X, weights)
   plan(sequential)
   saveRDS(integrated_LL, file = here(results_dir, "integrated_LL.rds"))
@@ -109,7 +110,7 @@ if (!skip_integrated) {
 if (!skip_profile) {
   message("📈 Running profile likelihood...")
   pl_start <- Sys.time()
-  plan(multisession, workers = 2)
+  plan(callr, workers = 2, gc = TRUE)
   profile_LL <- get_profile_LL(config, data, X, weights)
   plan(sequential)
   saveRDS(profile_LL, file = here(results_dir, "profile_LL.rds"))

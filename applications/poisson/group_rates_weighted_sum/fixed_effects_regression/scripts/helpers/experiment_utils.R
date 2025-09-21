@@ -192,7 +192,7 @@ get_branch_params_list <- function(config, data, X, weights) {
   
   foreach(
     i = 1:num_branches,
-    .combine = "list",
+    .combine = "c",
     .multicombine = TRUE,
     .errorhandling = "remove",
     .options.future = list(seed = TRUE,
@@ -201,7 +201,7 @@ get_branch_params_list <- function(config, data, X, weights) {
   ) %dofuture% {
     
     init_guess <- rnorm(length(Beta_MLE))
-    compute_branch_params(omega_hat_con_fn, init_guess, X, Y, t, weights, search_interval)
+    list(compute_branch_params(omega_hat_con_fn, init_guess, X, Y, t, weights, search_interval))
   }
 }
 
@@ -342,7 +342,7 @@ get_integrated_LL <- function(config, branch_params_list, data, X, weights) {
   # -------------------------------
   IL_branches <- foreach(
     branch_params = branch_params_list,
-    .combine = "list",
+    .combine = "c",
     .multicombine = TRUE,
     .errorhandling = "remove",
     .options.future = list(
@@ -351,7 +351,7 @@ get_integrated_LL <- function(config, branch_params_list, data, X, weights) {
       packages = c("nloptr", "dplyr")
     )
   ) %dofuture% {
-    compute_IL_branch(
+    IL_branch <- compute_IL_branch(
       X = X,
       Y = Y,
       t = t,
@@ -360,6 +360,8 @@ get_integrated_LL <- function(config, branch_params_list, data, X, weights) {
       psi_bar = psi_bar,
       psi_grid = psi_grid
     )
+
+    list(IL_branch)
   }
 
   log_L_bar <- get_log_L_bar(IL_branches)
