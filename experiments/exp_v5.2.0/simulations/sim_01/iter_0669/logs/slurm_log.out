@@ -1,0 +1,4269 @@
+📌 Logging to experiments/exp_v5.2.0/simulations/sim_01/iter_0669/logs/slurm_log.out
+git-lfs/3.3.0 (GitHub; linux amd64; go 1.20.3)
+🔁 Running Iteration 669 of Simulation sim_01 in Experiment exp_v5.2.0 (poisson / group_rates_weighted_sum/ fixed_effects_regression) with 64 cores...
+[INFO] True parameters already exist — skipping generation.
+Generating data...
+[✓] Saved config snapshot to: /gpfs/home/tbr0780/ILForge/experiments/exp_v5.2.0/simulations/sim_01/iter_0669/config_snapshot.yml
+[INFO] Generating new data for iteration: iter_0669
+[✓] Saved simulated data to: /gpfs/home/tbr0780/ILForge/experiments/exp_v5.2.0/simulations/sim_01/iter_0669/data
+[INFO] Saved objects: data, X
+Executing iteration...
+🔍 Computing branch parameters...
+✅ Branch parameters computed (2.15 min)
+🔍 Running integrated likelihood...
+✅ Integrated likelihood complete (4.41 min)
+📈 Running profile likelihood...
+✅ Profile likelihood complete (4.59 min)
+⏱️  Total experiment time: 11.15 minutes
+✓ Experiment results saved to /experiments/exp_v5.2.0/simulations/sim_01/iter_0669/results
+✓ Iteration completed
+✅ SLURM iteration complete: iter_0669
+===== FINAL DIAGNOSTICS for Job 4492031 =====
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 12:56:32 core-walltime
+Job Wall-clock time: 00:12:08
+Memory Utilized: 0.00 MB
+Memory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:12:08 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 12:56:32 core-walltime
+Job Wall-clock time: 00:12:08
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+JobID                     JobName    Elapsed     MaxRSS     ReqMem  AllocCPUS      State 
+------------ -------------------- ---------- ---------- ---------- ---------- ---------- 
+4490034_668        experiment_sim   00:12:09                   64G         64    RUNNING 
+4490034_668+                batch   00:12:09                               64    RUNNING 
+4490034_668+               extern   00:12:09                               64    RUNNING 
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        42Gi       451Gi       8.8Gi        10Gi       448Gi
+Swap:          31Gi        29Mi        31Gi
+ 17:13:12 up 11 days,  2:15,  0 users,  load average: 51.64, 64.72, 72.62
+top - 17:13:12 up 11 days,  2:15,  0 users,  load average: 51.64, 64.72, 72.62
+Tasks: 1270 total,   8 running, 1262 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 32.9 us,  7.5 sy,  0.0 ni, 59.4 id,  0.0 wa,  0.1 hi,  0.0 si,  0.0 st
+MiB Mem : 515679.4 total, 465869.0 free,  39364.2 used,  10446.3 buff/cache
+MiB Swap:  32768.0 total,  32738.9 free,     29.1 used. 462565.6 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+  76856 gbf0280   20   0 3749208 444168 153232 D 100.0   0.1   0:44.14 orca_le+
+  76859 gbf0280   20   0   13.0g 420336 127980 R 100.0   0.1   0:42.38 orca_le+
+  76861 gbf0280   20   0   11.2g 419292 126628 D 100.0   0.1   0:43.39 orca_le+
+  76863 gbf0280   20   0 2266152 420408 125416 D 100.0   0.1   0:46.42 orca_le+
+  76865 gbf0280   20   0   12.7g 419584 128328 D 100.0   0.1   0:43.09 orca_le+
+  76869 gbf0280   20   0 7932188 420716 127736 D 100.0   0.1   0:43.28 orca_le+
+  76871 gbf0280   20   0 8783104 419544 127116 R 100.0   0.1   0:45.35 orca_le+
+  76878 gbf0280   20   0 5236088 415152 122616 D 100.0   0.1   0:48.47 orca_le+
+  76879 gbf0280   20   0   17.2g 414888 122416 D 100.0   0.1   0:43.37 orca_le+
+  76880 gbf0280   20   0 2067272 416892 126176 R 100.0   0.1   0:42.75 orca_le+
+  76881 gbf0280   20   0   14.9g 417560 124848 D 100.0   0.1   0:44.47 orca_le+
+  76885 gbf0280   20   0   11.2g 415068 123604 D 100.0   0.1   0:44.41 orca_le+
+  76889 gbf0280   20   0   12.7g 420480 126344 D 100.0   0.1   0:44.07 orca_le+
+  76893 gbf0280   20   0   16.5g 418608 127684 R 100.0   0.1   0:43.58 orca_le+
+  76895 gbf0280   20   0 5070532 415828 123224 D 100.0   0.1   0:47.27 orca_le+
+  76897 gbf0280   20   0 8476992 419220 127828 D 100.0   0.1   0:43.66 orca_le+
+  76898 gbf0280   20   0   10.0g 418736 125972 D 100.0   0.1   0:42.90 orca_le+
+  76900 gbf0280   20   0 1884320 417848 126552 D 100.0   0.1   0:43.42 orca_le+
+  76903 gbf0280   20   0   12.3g 420020 128868 D 100.0   0.1   0:43.48 orca_le+
+  76853 gbf0280   20   0   15.8g 446248 153524 D  94.1   0.1   0:43.34 orca_le+
+  76854 gbf0280   20   0   14.5g 450144 154336 D  94.1   0.1   0:36.76 orca_le+
+  76855 gbf0280   20   0 3980360 446556 154124 D  94.1   0.1   0:43.58 orca_le+
+  76857 gbf0280   20   0 7950484 416320 124840 D  94.1   0.1   0:43.44 orca_le+
+  76858 gbf0280   20   0 5923944 417276 125760 D  94.1   0.1   0:46.23 orca_le+
+  76860 gbf0280   20   0 5279452 419204 126252 D  94.1   0.1   0:42.45 orca_le+
+  76862 gbf0280   20   0 2275072 419256 124568 D  94.1   0.1   0:47.18 orca_le+
+  76864 gbf0280   20   0   16.6g 422600 129964 D  94.1   0.1   0:48.02 orca_le+
+  76866 gbf0280   20   0 5031936 417508 126700 D  94.1   0.1   0:45.01 orca_le+
+  76867 gbf0280   20   0 2869388 416760 125652 D  94.1   0.1   0:43.77 orca_le+
+  76868 gbf0280   20   0 2852152 420240 127652 D  94.1   0.1   0:43.46 orca_le+
+  76870 gbf0280   20   0 2701788 417636 126100 D  94.1   0.1   0:43.92 orca_le+
+  76872 gbf0280   20   0 5284300 418924 125412 D  94.1   0.1   0:42.75 orca_le+
+  76873 gbf0280   20   0   11.6g 418556 127092 D  94.1   0.1   0:43.38 orca_le+
+===== BACKGROUND CHECKJOB MONITOR LOG =====
+===== checkjob (interval) at Sun Sep 21 17:01:53 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:00:50 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:54:24 core-walltime
+Job Wall-clock time: 00:00:51
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:02:24 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:01:21 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 01:27:28 core-walltime
+Job Wall-clock time: 00:01:22
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:02:55 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:01:53 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 02:00:32 core-walltime
+Job Wall-clock time: 00:01:53
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:03:27 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:02:24 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 02:34:40 core-walltime
+Job Wall-clock time: 00:02:25
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:03:58 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:02:55 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 03:06:40 core-walltime
+Job Wall-clock time: 00:02:55
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:04:30 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:03:28 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 03:42:56 core-walltime
+Job Wall-clock time: 00:03:29
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:05:02 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:03:59 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 04:16:00 core-walltime
+Job Wall-clock time: 00:04:00
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:05:33 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:04:31 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 04:49:04 core-walltime
+Job Wall-clock time: 00:04:31
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:06:05 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:05:02 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 05:24:16 core-walltime
+Job Wall-clock time: 00:05:04
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:06:37 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:05:34 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 05:57:20 core-walltime
+Job Wall-clock time: 00:05:35
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:07:09 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:06:06 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 06:30:24 core-walltime
+Job Wall-clock time: 00:06:06
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:07:40 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:06:37 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 07:03:28 core-walltime
+Job Wall-clock time: 00:06:37
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:08:10 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:07:07 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 07:36:32 core-walltime
+Job Wall-clock time: 00:07:08
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:08:41 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:07:38 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 08:08:32 core-walltime
+Job Wall-clock time: 00:07:38
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:09:12 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:08:09 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 08:41:36 core-walltime
+Job Wall-clock time: 00:08:09
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:09:42 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:08:39 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 09:14:40 core-walltime
+Job Wall-clock time: 00:08:40
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:10:13 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:09:10 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 09:47:44 core-walltime
+Job Wall-clock time: 00:09:11
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:10:44 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:09:41 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 10:19:44 core-walltime
+Job Wall-clock time: 00:09:41
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:11:15 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:10:12 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 10:52:48 core-walltime
+Job Wall-clock time: 00:10:12
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:11:45 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:10:43 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 11:25:52 core-walltime
+Job Wall-clock time: 00:10:43
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:12:16 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:11:13 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 11:58:56 core-walltime
+Job Wall-clock time: 00:11:14
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"
+===== checkjob (interval) at Sun Sep 21 17:12:47 CDT 2025 =====
+--------------------------------------------------------------------------------
+JOB INFORMATION 
+--------------------------------------------------------------------------------
+JobId=4492031 ArrayJobId=4490034 ArrayTaskId=668 JobName=experiment_sim
+   UserId=tbr0780(3229) GroupId=tbr0780(4023) MCS_label=N/A
+   Priority=18403 Nice=0 Account=p32397 QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:11:44 TimeLimit=02:00:00 TimeMin=N/A
+   SubmitTime=2025-09-21T15:28:52 EligibleTime=2025-09-21T15:28:52
+   AccrueTime=2025-09-21T15:28:52
+   StartTime=2025-09-21T17:01:03 EndTime=2025-09-21T19:01:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-09-21T17:01:03 Scheduler=Backfill
+   Partition=short AllocNode:Sid=quser32:2678430
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=qnode3015
+   BatchHost=qnode3015
+   NumNodes=1 NumCPUs=64 NumTasks=1 CPUs/Task=64 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=64,mem=64G,node=1,billing=288
+   AllocTRES=cpu=64,mem=64G,node=1,billing=288
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=64 MinMemoryNode=64G MinTmpDiskNode=0
+   Features=[quest10|quest11|quest12|quest13] DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/gpfs/home/tbr0780/ILForge/common/bash/launch_experiment2.sh
+   WorkDir=/gpfs/home/tbr0780/ILForge
+   StdErr=/dev/null
+   StdIn=/dev/null
+   StdOut=/dev/null
+   TresPerTask=cpu=64
+   MailUser=timothyruel2024@u.northwestern.edu MailType=INVALID_DEPEND,BEGIN,END,FAIL,REQUEUE,STAGE_OUT
+   
+--------------------------------------------------------------------------------
+JOB EFFICIENCY 
+--------------------------------------------------------------------------------
+Job ID: 4492031
+Array Job ID: 4490034_668
+Cluster: quest
+User/Group: tbr0780/tbr0780
+State: RUNNING
+Nodes: 1
+Cores per node: 64
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 12:30:56 core-walltime
+Job Wall-clock time: 00:11:44
+Memory Utilized: 0.00 MB
+[41mMemory Efficiency: 0.00% of 64.00 GB (64.00 GB/node)[0m
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.
+--------------------------------------------------------------------------------
+JOB SCRIPT 
+--------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --account=p32397
+#SBATCH --partition=short
+#SBATCH --time=02:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timothyruel2024@u.northwestern.edu
+#SBATCH --job-name=experiment_sim
+#SBATCH --output=/dev/null
+#SBATCH --nodes=1
+#SBATCH --ntasks=1                 # one R process
+#SBATCH --cpus-per-task=64         # all forked workers come from this
+#SBATCH --mem=64G                  # total memory for the task
+#SBATCH --array=0-999
+
+# ===============================
+# ✅ Validate CLI arguments
+# ===============================
+if [[ $# -ne 5 ]]; then
+  echo "❌ ERROR: Missing arguments."
+  echo "Usage: sbatch $0 <application_name> <estimand_name> <model_name> <experiment_id> <simulation_id>"
+  exit 1
+fi
+
+APP_NAME="$1"
+ESTIMAND="$2"
+MODEL="$3"
+EXP_ID="$4"
+SIM_ID="$5"
+
+ITER_NUM=$((SLURM_ARRAY_TASK_ID + 1))
+ITER_ID=$(printf "iter_%04d" "$ITER_NUM")
+REQUESTED_CORES=${SLURM_CPUS_PER_TASK:-1}
+
+# ===============================
+# ✅ Resolve project root
+# ===============================
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+cd "$PROJECT_ROOT" || {
+  echo "❌ ERROR: Failed to cd into SLURM_SUBMIT_DIR ($SLURM_SUBMIT_DIR)"
+  exit 1
+}
+echo "📁 PROJECT_ROOT resolved to: $PROJECT_ROOT"
+
+# ===============================
+# ✅ Logging setup
+# ===============================
+SIM_DIR="experiments/${EXP_ID}/simulations/${SIM_ID}"
+ITER_DIR="${SIM_DIR}/${ITER_ID}"
+LOG_DIR="${ITER_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="${LOG_DIR}/slurm_log.out"
+CHECKJOB_MONITOR="${LOG_DIR}/checkjob_monitor.out"
+
+exec > "$LOG_FILE" 2>&1
+echo "📌 Logging to $LOG_FILE"
+
+# ===============================
+# ✅ Load environment modules
+# ===============================
+module purge all
+module load R/4.4.0
+module load hdf5/1.14.1-2-gcc-12.3.0 
+module load gsl/2.7.1-gcc-12.3.0 
+module load fftw/3.3.10-gcc-12.3.0 
+module load gdal/3.7.0-gcc-12.3.0
+module load nlopt/2.7.1-gcc-12.3.0
+module load git/2.37.2-gcc-10.4.0
+module load chrome/114.0.5735.90
+module load git-lfs/3.3.0-gcc-10.4.0
+
+git lfs version || { echo "❌ git-lfs not available"; exit 1; }
+
+# --- Limit BLAS threading conflicts (critical for multicore) ---
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
+echo "🔁 Running Iteration $ITER_NUM of Simulation $SIM_ID in Experiment $EXP_ID ($APP_NAME / $ESTIMAND/ $MODEL) with $REQUESTED_CORES cores..."
+
+# ===============================
+# ✅ Background checkjob monitor
+# ===============================
+(
+  while true; do
+    echo "===== checkjob (interval) at $(date) =====" >> "$CHECKJOB_MONITOR"
+    checkjob "$SLURM_JOB_ID" >> "$CHECKJOB_MONITOR" 2>&1
+    sleep 30
+  done
+) &
+CHECKJOB_PID=$!
+
+# ===============================
+# ✅ Cleanup diagnostics
+# ===============================
+trap '
+  echo "===== FINAL DIAGNOSTICS for Job $SLURM_JOB_ID =====" >> "$LOG_FILE"
+  seff "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  checkjob "$SLURM_JOB_ID" >> "$LOG_FILE" 2>&1
+  sacct -j "$SLURM_JOB_ID" --format=JobID,JobName%20,Elapsed,MaxRSS,ReqMem,AllocCPUs,State >> "$LOG_FILE" 2>&1
+  free -h >> "$LOG_FILE" 2>&1
+  uptime >> "$LOG_FILE" 2>&1
+  top -b -n 1 | head -40 >> "$LOG_FILE" 2>&1
+  echo "===== BACKGROUND CHECKJOB MONITOR LOG =====" >> "$LOG_FILE"
+  cat "$CHECKJOB_MONITOR" >> "$LOG_FILE" 2>/dev/null
+  rm -f "$CHECKJOB_MONITOR"
+  kill "$CHECKJOB_PID" 2>/dev/null
+' EXIT
+
+# ===============================
+# ✅ Run main R script
+# ===============================
+RSCRIPT_PATH="common/scripts/main.R"
+
+if [[ ! -f "$RSCRIPT_PATH" ]]; then
+  echo "❌ ERROR: Could not find R script at: $RSCRIPT_PATH"
+  exit 1
+fi
+
+command -v Rscript >/dev/null 2>&1 || {
+  echo "❌ ERROR: Rscript not found in PATH."
+  exit 1
+}
+
+Rscript --max-connections=256 "$RSCRIPT_PATH" \
+  "$APP_NAME" "$ESTIMAND" "$MODEL" "$EXP_ID" "$SIM_ID" "$ITER_ID" "$REQUESTED_CORES"
+
+echo "✅ SLURM iteration complete: $ITER_ID"

@@ -1,0 +1,95 @@
+experiment:
+  app: poisson
+  estimand: group_rates_weighted_sum
+  model: fixed_effects_regression
+  id: exp_v5.2.0
+  sim_id: sim_01
+  iter_id: iter_0154
+  description: |
+    Estimate group-specific Poisson rates within a fixed-effects regression with covariates. Observed counts are modeled with known exposure times (offsets), categorical indicators for groups, and additional covariates. Each group has its own intercept and slope for at least one covariate, while other covariate effects can be shared across groups. Group-level weights are applied when forming summaries such as weighted sums or averages of estimated rates. Group rates can be evaluated at particular covariate values (reference values) or marginalized over a covariate distribution.
+model:
+  seed: 6408
+  groups:
+    A: 3
+    B: 3
+    C: 3
+    D: 3
+    E: 3
+  intercepts:
+    type: heterogeneous
+    symbol: α
+    distribution:
+      name: rnorm
+      args:
+      - 1.5
+      - 0.5
+  covariates:
+  - type: homogeneous
+    variable:
+      symbol: X1
+      distribution:
+        name: rexp
+        args: 1.0
+    coefficient:
+      symbol: γ1
+      distribution:
+        name: rnorm
+        args:
+        - 0.2
+        - 0.05
+  - type: heterogeneous
+    variable:
+      symbol: X2
+      distribution:
+        name: rnorm
+        args:
+        - 0.0
+        - 1.0
+    coefficient:
+      symbol: ζ2
+      distribution:
+        name: rnorm
+        args:
+        - 0.5
+        - 0.1
+  exposure:
+    symbol: t
+    distribution:
+      name: runif
+      args:
+      - 2
+      - 4
+  weights:
+    symbol: w
+    distribution:
+      name: runif
+      args:
+      - 1
+      - 10
+    normalize_mean_to: 1.0
+  evaluation:
+    mode: marginal
+    reference:
+      xstar:
+        X1: 0.0
+        X2: 0.0
+    marginal:
+      over: sample
+      summary: mean
+      n_mc: 1e7
+optimization_specs:
+  IL:
+    increment: 0.25
+    num_std_errors: 3
+    chunk_size: 4
+    num_workers: 64
+    max_cores: 128
+  PL:
+    step_size: 0.05
+    fine_step_size: 0.025
+    fine_window: 0.1
+    alpha_levels:
+    - 0.1
+    - 0.05
+    - 0.01
+
