@@ -6,8 +6,11 @@ format:
 params:
   sim_id: null
   experiment: null
-  data_generation: null
+  seed: null
   model: null
+  exposure: null
+  weights: null
+  evaluation: null
   optimization_specs: null
 ---
 
@@ -30,29 +33,32 @@ project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
 list2env(params, envir = environment())
 app_name <- experiment$app
 estimand <- experiment$estimand
+model_name <- experiment$model
 exp_id <- experiment$id
 
 # -------------------------------
 # ✅ Define paths
 # -------------------------------
+project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
 exp_dir <- file.path(project_root, "experiments", exp_id)
 true_params_dir <- file.path(exp_dir, "true_params")
 sim_dir <- file.path(exp_dir, "simulations", sim_id)
 iter_dirs <- list.dirs(sim_dir, recursive = FALSE)
-estimand_helpers_dir <- file.path(project_root, "applications", app_name, estimand, "scripts", "helpers")
+model_helpers_dir <- file.path(project_root, "applications", app_name, estimand, model_name, "scripts", "helpers")
 common_helpers_dir <- file.path(project_root, "common", "scripts", "helpers")
 
 # -------------------------------
 # ✅ Load helpers
 # -------------------------------
-miceadds::source.all(estimand_helpers_dir, print.source = FALSE)
+miceadds::source.all(model_helpers_dir, print.source = FALSE)
 miceadds::source.all(common_helpers_dir, print.source = FALSE)
 ```
 
 ```{r}
 #| include: false
 theta_0 <- readRDS(file.path(true_params_dir, "theta_0.rds"))
-psi_0 <- theta_0$psi_0
+weights <- readRDS(file.path(true_params_dir, "weights.rds"))
+psi_0 <- sum(theta_0 * weights)
 ```
 
 ```{r}
@@ -103,7 +109,7 @@ subtitle <- paste("Experiment", exp_id, "— Simulation", sim_id)
 header <- paste("##", subtitle)
 cat(header)
 cat("\n")
-cat(paste("True Entropy:", round(psi_0, 3)))
+cat(paste("True Weighted Sum:", round(psi_0, 3)))
 cat("\n\n")
 cat(paste("Number of Simulations:", length(iter_dirs)))
 cat("\n\n")

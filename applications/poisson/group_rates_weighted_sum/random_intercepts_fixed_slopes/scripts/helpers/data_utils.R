@@ -91,10 +91,10 @@ get_X <- function(config, Beta_0, n_per_group) {
 # Generate Poisson outcomes
 generate_data <- function(config, Beta_0, sigma_alpha) {
   
-  n_per_group <- unlist(config$model$groups)
+  n_per_group <- expand_groups(config$model$groups)
+  group_labels <- names(n_per_group)
   G <- length(n_per_group)
   total_n <- sum(n_per_group)
-  group_labels <- names(n_per_group)
   group_id <- rep(group_labels, times = n_per_group)
   
   exposure_dist <- match.fun(config$model$exposure$distribution$name)

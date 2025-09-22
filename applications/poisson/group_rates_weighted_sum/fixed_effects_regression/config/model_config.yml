@@ -18,18 +18,22 @@ model:
   seed: 6408
 
   groups:
-    A: 3
-    B: 3
-    C: 3
-    D: 3
-    E: 3
+    num_groups: 20
+    n_per_group:
+      gen_type: fixed
+      fixed:
+        values: 20
+      random:
+        distribution:
+          name: rpois
+          args: [1, 10]
     
   intercepts:
     type: heterogeneous # Can be either "homogeneous" (fixed across all groups) or "heterogeneous" (allowed to vary across all groups)
     symbol: α
     distribution: 
       name: rnorm
-      args: [1.5, 0.5]
+      args: [0.5, 0.5]
 
   covariates:
     - type: homogeneous 
@@ -60,7 +64,7 @@ model:
     symbol: t
     distribution: 
       name: runif
-      args: [2, 4]                     # t_i ~ Uniform(2,4)
+      args: [1, 2]                     # t_i ~ Uniform(2,4)
 
   weights:
     symbol: w
@@ -78,4 +82,4 @@ model:
     marginal:
       over: sample                   # options: sample (use simulated X), group (average within group)
       summary: mean
-      n_mc: 1e7
+      n_mc: 1e6

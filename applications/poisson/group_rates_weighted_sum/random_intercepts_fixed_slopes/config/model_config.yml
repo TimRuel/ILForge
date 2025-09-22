@@ -20,9 +20,15 @@ model:
   # Groups
   # -------------------------------
   groups:
-    A: 50
-    B: 50
-    C: 50
+    num_groups: 20
+    n_per_group:
+      gen_type: fixed
+      fixed:
+        values: 20
+      random:
+        distribution:
+          name: rpois
+          args: [1, 10]
 
 
   # -------------------------------
@@ -97,4 +103,4 @@ model:
     marginal:
       over: sample                   # sample from X
       summary: mean
-      n_mc: 1e7
+      n_mc: 1e6

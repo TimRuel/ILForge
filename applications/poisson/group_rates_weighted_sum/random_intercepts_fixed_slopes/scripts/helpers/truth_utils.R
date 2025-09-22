@@ -1,5 +1,58 @@
 # applications/poisson/group_rates_weighted_sum/random_intercepts_fixed_slopes/scripts/helpers/truth_utils.R
 
+# Helper to generate group labels: A, B, ..., Z, AA, BB, ...
+# Generate Excel-style column labels: A, B, ..., Z, AA, AB, ..., ZZ, AAA, etc.
+make_group_labels <- function(G) {
+  labels <- character(G)
+  
+  for (i in seq_len(G)) {
+    n <- i
+    s <- ""
+    while (n > 0) {
+      r <- (n - 1) %% 26
+      s <- paste0(LETTERS[r + 1], s)
+      n <- (n - 1) %/% 26
+    }
+    labels[i] <- s
+  }
+  
+  labels
+}
+
+# Expand groups from config into a named vector of group sizes
+expand_groups <- function(groups_config) {
+  
+  G <- groups_config$num_groups
+  gen_type <- groups_config$n_per_group$gen_type
+  
+  if (gen_type == "fixed") {
+    vals <- groups_config$n_per_group$fixed$values
+    
+    if (length(vals) == 1L) {
+      n_per_group <- rep(vals, G)
+    } else if (length(vals) == G) {
+      n_per_group <- vals
+    } else {
+      stop("For fixed group sizes, 'values' must have length 1 or num_groups = ", G, ".")
+    }
+    
+  } else if (gen_type == "random") {
+    dist_config <- groups_config$n_per_group$random$distribution
+    n_per_group <- sample_from_config(dist_config, G)
+  } else {
+    stop("Unknown group generation type: ", gen_type)
+  }
+  
+  # Validation: positive integers
+  if (any(n_per_group <= 0 | n_per_group != as.integer(n_per_group))) {
+    stop("All group sizes must be positive integers. Got: ", paste(n_per_group, collapse = ", "))
+  }
+  
+  n_per_group <- as.integer(n_per_group)
+  names(n_per_group) <- make_group_labels(G)
+  n_per_group
+}
+
 # Generic sampler for config blocks like:
 #   distribution: { name: rnorm, args: [0,1] }
 sample_from_config <- function(dist_config, n = 1) {
@@ -33,8 +86,9 @@ filter_by_greek <- function(mat, greek_symbol) {
 
 # Generate group weights  (reads from config$model$weights)
 generate_group_weights <- function(config) {
+  
   weight_config <- config$model$weights
-  n_per_group <- unlist(config$model$groups)
+  n_per_group <- expand_groups(config$model$groups)
   G <- length(n_per_group)
   
   if (is.null(weight_config$distribution) || is.null(weight_config$distribution$name))
@@ -56,7 +110,7 @@ generate_group_weights <- function(config) {
 
 get_Beta_0 <- function(config) {
   
-  n_per_group <- unlist(config$model$groups)
+  n_per_group <- expand_groups(config$model$groups)
   group_labels <- names(n_per_group)
   G <- length(n_per_group)
   covs <- config$model$covariates
@@ -98,7 +152,8 @@ get_Beta_0 <- function(config) {
 
 compute_true_marginal_rates <- function(config, Beta_0, sigma_alpha) {
   
-  group_labels <- names(config$model$groups)
+  n_per_group <- expand_groups(config$model$groups)
+  group_labels <- names(n_per_group)
   G <- length(group_labels)
   n_mc <- as.numeric(config$model$evaluation$marginal$n_mc)
   n_per_group <- rep(n_mc, G)
@@ -128,10 +183,13 @@ generate_true_parameters <- function(config) {
   
   theta_0 <- compute_true_marginal_rates(config, Beta_0, sigma_alpha)
   
+  n_per_group <- expand_groups(config$model$groups)
+  
   list(
-    Beta_0 = Beta_0,  # stacked coefficient vector
-    sigma_alpha = sigma_alpha, # random intercept variance
-    theta_0 = theta_0, # marginal rates per group
-    weights = weights  # named by group
+    Beta_0 = Beta_0,  
+    sigma_alpha = sigma_alpha, 
+    theta_0 = theta_0, 
+    weights = weights,  
+    n_per_group = n_per_group
   )
 }

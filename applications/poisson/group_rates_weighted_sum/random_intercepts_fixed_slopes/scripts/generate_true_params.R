@@ -66,7 +66,7 @@ if (!is.null(exp_config$model$seed)) {
 true_parameters <- generate_true_parameters(exp_config)
 
 # Validate output elements
-expected_names <- c("Beta_0", "sigma_alpha", "theta_0", "weights")
+expected_names <- c("Beta_0", "sigma_alpha", "theta_0", "weights", "n_per_group")
 missing_names <- setdiff(expected_names, names(true_parameters))
 if (length(missing_names) > 0) {
   stop("[ERROR] Missing elements in true_parameters: ", paste(missing_names, collapse = ", "))
