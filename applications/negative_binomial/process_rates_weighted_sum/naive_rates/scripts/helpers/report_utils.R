@@ -1,4 +1,36 @@
-# applications/poisson/group_rates_weighted_sum/naive_group_rates/scripts/helpers/report_utils.R
+
+get_report_objects <- function(iter_dir) {
+  
+  results_dir <- here(iter_dir, "results")
+  config_path <- here(iter_dir, "config_snapshot.yml")
+  config <- read_yaml(config_path)
+  
+  integrated_LL <- readRDS(here(results_dir, "integrated_LL.rds"))
+  profile_LL <- readRDS(here(results_dir, "profile_LL.rds"))
+  
+  LL_df <- integrated_LL$log_L_bar_df |>
+    merge(profile_LL, all = TRUE)
+  
+  LL_df_long <- get_LL_df_long(LL_df)
+  
+  spline_models <- get_spline_models(LL_df_long)
+  
+  MLE_data <- get_MLE_data(spline_models, LL_df_long)
+  
+  pseudolikelihoods <- get_pseudolikelihoods(spline_models, MLE_data)
+  
+  alpha_levels <- config$optimization_specs$PL$alpha_levels
+  
+  conf_ints <- get_confidence_intervals(
+    pseudolikelihoods = pseudolikelihoods,
+    LL_df_long        = LL_df_long,
+    MLE_data          = MLE_data,
+    alpha_levels      = alpha_levels
+  )
+  
+  return(list(MLE_data = MLE_data,
+              conf_ints = conf_ints))
+}
 
 get_LL_df_long <- function(LL_df) {
   

@@ -4,59 +4,73 @@ suppressPackageStartupMessages({
   library(glmmTMB)
 })
 
+#' Fit a Negative Binomial model with process-specific rates and dispersions
+#'
+#' @param data A tibble or data frame containing:
+#'   - Y: observed counts
+#'   - t: exposure times
+#'   - process: factor identifying each process
+#'
+#' @return A fitted glmmTMB model with process-level fixed effects and
+#'         process-specific dispersion parameters.
+#'
+#' @details
+#' The fitted model assumes:
+#'   - Y_ij ~ NegBinomial(mu_ij, phi_j)
+#'   - log(mu_ij) = log(t_ij) + log(theta_j)
+#'
+#' This corresponds to a regression with no intercept, process-level fixed
+#' effects, and an offset for log-exposure.
+#'
 fit_model <- function(data) {
+  stopifnot(all(c("Y", "t", "process") %in% names(data)))
   
-  glmmTMB(
-    Y ~ 0 + process + offset(log(t)),
-    family = nbinom2(),        # variance = mu + phi*mu^2
-    dispformula = ~ 0 + process, # φ varies by process
+  glmmTMB::glmmTMB(
+    formula = Y ~ 0 + process + offset(log(t)),
+    family = glmmTMB::nbinom2(),           # Variance = mu + phi * mu^2
+    dispformula = ~ 0 + process,           # phi varies by process
     data = data
   )
 }
 
+#' Extract MLEs for process-specific rate parameters (theta_j)
+#'
+#' @param model A fitted glmmTMB object.
+#' @return Named numeric vector of exp(fixed effects), one per process.
+#'
 get_theta_MLE <- function(model) {
-  
-  model |> 
-    fixef() |> 
-    (\(x) x$cond)() |> 
-    exp() |> 
-    set_names(levels(model$frame$process))
+  theta <- exp(glmmTMB::fixef(model)$cond)
+  names(theta) <- levels(model$frame$process)
+  theta
 }
 
+#' Extract MLEs for process-specific dispersion parameters (phi_j)
+#'
+#' @param model A fitted glmmTMB object.
+#' @return Named numeric vector of exp(dispersion fixed effects), one per process.
+#'
 get_phi_MLE <- function(model) {
-  
-  model |> 
-    fixef() |> 
-    (\(x) x$disp)() |> 
-    exp() |> 
-    set_names(levels(model$frame$process))
+  phi <- exp(glmmTMB::fixef(model)$disp)
+  names(phi) <- levels(model$frame$process)
+  phi
 }
 
-get_psi_MLE <- function(theta_MLE, weights) sum(theta_MLE * weights)
-
-get_psi_MLE_SE <- function(theta_MLE, phi_MLE, weights, data) {
+#' Compute fitted mean counts per process (mu_hat)
+#'
+#' @param model A fitted glmmTMB object.
+#' @param data The same data used for fitting, containing columns `t` and `process`.
+#'
+#' @return Numeric vector of fitted means `mu_hat = t * theta_hat` per observation.
+#'         The vector is ordered the same as `data`.
+#'
+#' @details
+#' This helper multiplies each observation’s exposure time by the corresponding
+#' process-specific rate parameter estimated from the fitted model.
+#'
+get_mu_hat <- function(model, data) {
+  stopifnot(all(c("t", "process") %in% names(data)))
   
-  t <- data |> 
-    group_by(process) |> 
-    summarise(S1 = sum(t),
-              S2 = sum(t^2),
-              .groups = "drop")
-  
-  theta_MLE <- theta_MLE[match(t$process, names(theta_MLE))]
-  phi_MLE <- phi_MLE[match(t$process, names(phi_MLE))]
-  
-  var_theta <- theta_MLE / t$S1 + theta_MLE^2 / phi_MLE * t$S2 / (t$S1)^2
-  
-  sqrt(sum((weights^2) * var_theta))
+  theta_hat <- get_theta_MLE(model)
+  mu_hat <- data$t * theta_hat[data$process]
+  mu_hat
 }
-
-log_likelihood <- function(theta, phi, Y, t, n_per_process) {
-  
-  dnbinom(x = Y, 
-          size = rep(phi, times = n_per_process), 
-          mu = t * rep(theta, times = n_per_process),
-          log = TRUE) |>
-    sum()
-}
-
-likelihood <- function(theta, phi, Y, t, n_per_process) exp(log_likelihood(theta, phi, Y, t, n_per_process))

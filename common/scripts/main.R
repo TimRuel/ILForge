@@ -112,9 +112,9 @@ run_model_script("generate_data.R", c(exp_id, sim_id, iter_id))
 config_snapshot_path <- here(iter_dir, "config_snapshot.yml")
 config_snapshot <- read_yaml(config_snapshot_path)
 
-opt_config_path <- model_path("config", "opt_config.yml")
-opt_config <- read_yaml(opt_config_path)
-config_snapshot$optimization_specs <- c(config_snapshot$optimization_specs, opt_config)
+# opt_config_path <- model_path("config", "opt_config.yml")
+# opt_config <- read_yaml(opt_config_path)
+# config_snapshot$optimization_specs <- c(config_snapshot$optimization_specs, opt_config)
 
 # -------------------------------
 # ✅ Set core usage
