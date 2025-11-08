@@ -10,7 +10,7 @@ experiment:
     and known exposure times. No covariates or regression structure; each process is treated
     independently. Process-level weights influence the weighted-sum estimand ψ.
 
-seed: 9406
+seed: 8491
 
 processes:
   n_processes: 5
@@ -41,7 +41,7 @@ optimization_specs:
 
   IL:  # Integrated Likelihood settings
     # --- ψ-grid sizing & curvature estimation ---
-    num_std_errors: 0.5          # width of ψ-grid in SE units
+    num_std_errors: 3          # width of ψ-grid in SE units
     step_size: 0.25            # coarse ψ step
     fine_step_size: 0.05       # fine ψ step near ψ_MLE
     fine_window: 1.0           # half-width around ψ_MLE for fine stepping
@@ -49,10 +49,10 @@ optimization_specs:
 
     # --- parallel branch generation ---
     chunk_size: 1              # branches per worker
-    num_workers: 4             # total branches = chunk_size * num_workers
+    num_workers: 64             # total branches = chunk_size * num_workers
 
     # --- inner solver controls ---
-    ratio_threshold: 1000
+    ratio_threshold: 10000000
     n_mc: 100000
     p_cutoff: 1e-12
     max_y_cap: 1e6

@@ -10,7 +10,7 @@
 #SBATCH --ntasks=1                 # one R process
 #SBATCH --cpus-per-task=64         # all forked workers come from this
 #SBATCH --mem=64G                  # total memory for the task
-#SBATCH --array=0-999
+#SBATCH --array=0
 
 # ===============================
 # ✅ Validate CLI arguments
