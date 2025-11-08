@@ -1,0 +1,165 @@
+---
+title: "Simulation Report"
+format: 
+  html:
+    embed-resources: true
+params:
+  sim_id: null
+  experiment: null
+  seed: null
+  model: null
+  exposure: null
+  weights: null
+  evaluation: null
+  optimization_specs: null
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(ggrepel)
+library(kableExtra)
+library(zeallot)
+library(yaml)
+
+# -------------------------------
+# ✅ Establish project root
+# -------------------------------
+project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
+
+# -------------------------------
+# ✅ Load params from config
+# -------------------------------
+list2env(params, envir = environment())
+app_name <- experiment$app
+estimand <- experiment$estimand
+model_name <- experiment$model
+exp_id <- experiment$id
+
+# -------------------------------
+# ✅ Define paths
+# -------------------------------
+project_root <- rprojroot::find_root(rprojroot::has_file("Makefile"))
+exp_dir <- file.path(project_root, "experiments", exp_id)
+true_params_dir <- file.path(exp_dir, "true_params")
+sim_dir <- file.path(exp_dir, "simulations", sim_id)
+iter_dirs <- list.dirs(sim_dir, recursive = FALSE)
+model_helpers_dir <- file.path(project_root, "applications", app_name, estimand, model_name, "scripts", "helpers")
+common_helpers_dir <- file.path(project_root, "common", "scripts", "helpers")
+
+# -------------------------------
+# ✅ Load helpers
+# -------------------------------
+miceadds::source.all(model_helpers_dir, print.source = FALSE)
+miceadds::source.all(common_helpers_dir, print.source = FALSE)
+```
+
+```{r}
+#| include: false
+theta_0 <- readRDS(file.path(true_params_dir, "theta_0.rds"))
+weights <- readRDS(file.path(true_params_dir, "weights.rds"))
+psi_0 <- sum(theta_0 * weights)
+```
+
+```{r}
+#| include: false
+skipped_dirs <- iter_dirs |>
+  keep(~ {
+    is_empty <- length(list.files(.x, recursive = TRUE)) == 0
+    missing_file <- !file.exists(file.path(.x, "results", "MLE_data.rds"))
+    is_empty || missing_file
+  })
+
+# Count of skipped directories
+num_skipped_MLE <- length(skipped_dirs)
+
+# Proceed with the valid ones
+MLE_data_list <- setdiff(iter_dirs, skipped_dirs) |>
+  map(\(iter_dir) {
+    readRDS(file.path(iter_dir, "results", "MLE_data.rds"))
+  })
+
+mle_summary_df <- summarize_mle_performance(MLE_data_list, psi_0)
+```
+
+```{r}
+#| include: false
+skipped_dirs <- iter_dirs |>
+  keep(~ {
+    is_empty <- length(list.files(.x, recursive = TRUE)) == 0
+    missing_file <- !file.exists(file.path(.x, "results", "conf_ints.rds"))
+    is_empty || missing_file
+  })
+
+# Count of skipped directories
+num_skipped_CI <- length(skipped_dirs)
+
+# Proceed with the valid ones
+conf_ints_list <- setdiff(iter_dirs, skipped_dirs) |>
+  map(\(iter_dir) {
+    readRDS(file.path(iter_dir, "results", "conf_ints.rds"))
+  })
+
+ci_summary_df <- summarize_confidence_intervals(conf_ints_list, psi_0)
+```
+
+```{r results="asis"}
+#| echo: false
+subtitle <- paste("Experiment", exp_id, "— Simulation", sim_id)
+header <- paste("##", subtitle)
+cat(header)
+cat("\n")
+cat(paste("True Weighted Sum:", round(psi_0, 3)))
+cat("\n\n")
+cat(paste("Number of Simulations:", length(iter_dirs)))
+cat("\n\n")
+cat(paste("Number of Failed Simulations for MLE:", num_skipped_MLE))
+cat("\n\n")
+cat(paste("Number of Failed Simulations for CI:", num_skipped_CI))
+```
+
+```{r}
+#| echo: false
+mle_summary_df |>
+  select(Metric = Source, Bias = bias, SD = sd, RMSE = rmse) |>
+  pivot_longer(-Metric, names_to = "Stat", values_to = "Value") |>
+  pivot_wider(names_from = Metric, values_from = Value) |>
+  mutate(Metric = Stat) |>
+  select(Metric, Integrated, Profile) |> 
+  kbl(caption = "MLE Comparison Table",
+      digits = 3, 
+      align = "ccccc") |>
+  kable_styling(position = "center",
+                font_size = 18,
+                html_font = "Arial") |> 
+  row_spec(row = 0, background = "#222831", color = "#76ABAE") |> 
+  column_spec(1:3, color = "#EEEEEE", extra_css = "background-color: #222831; vertical-align:middle;") |> 
+  column_spec(1, bold = TRUE)
+```
+
+```{r}
+#| echo: false
+col_names = c("CI Level", "Pseudolikelihood", "Coverage (%)", "Mean Width", "Median Width", "Valid (%)")
+
+ci_summary_df |>
+  select(confidence, pseudolikelihood, coverage_rate, mean_width, median_width, valid_rate) |> 
+  mutate(coverage_rate = coverage_rate * 100, 
+         valid_rate = valid_rate * 100) |> 
+  arrange(confidence) |> 
+  kbl(caption = "Confidence Interval Comparison Table",
+      digits = c(0, 0, 1, 3, 3, 1), 
+      align = "ccccc",
+      col.names = col_names) |>
+  kable_styling(position = "center",
+                font_size = 18,
+                html_font = "Arial") |> 
+  row_spec(row = 0, background = "#222831", color = "#76ABAE") |> 
+  column_spec(1:length(col_names), color = "#EEEEEE", extra_css = "background-color: #222831; vertical-align:middle;") |>
+  column_spec(1:2, bold = TRUE) |> 
+  collapse_rows(columns = 1, valign = "middle")
+```
+
+
+
+
+

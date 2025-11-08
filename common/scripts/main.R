@@ -119,9 +119,9 @@ config_snapshot <- read_yaml(config_snapshot_path)
 # -------------------------------
 # ✅ Set core usage
 # -------------------------------
-core_info <- get_core_config(requested_cores)
-config_snapshot$optimization_specs$IL$max_cores <- core_info$max_cores
-config_snapshot$optimization_specs$IL$num_workers <- core_info$num_workers
+# core_info <- get_core_config(requested_cores)
+# config_snapshot$optimization_specs$IL$max_cores <- core_info$max_cores
+# config_snapshot$optimization_specs$IL$num_workers <- core_info$num_workers
 
 # -------------------------------
 # ✅ Save updated config

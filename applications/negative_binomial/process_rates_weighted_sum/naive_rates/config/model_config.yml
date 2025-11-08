@@ -40,26 +40,30 @@ weights:
 optimization_specs:
 
   IL:  # Integrated Likelihood settings
-    num_std_errors: 3
-    step_size: 0.25
-    fine_step_size: 0.05
-    fine_window: 1.0
+    # --- ψ-grid sizing & curvature estimation ---
+    num_std_errors: 0.5          # width of ψ-grid in SE units
+    step_size: 0.25            # coarse ψ step
+    fine_step_size: 0.05       # fine ψ step near ψ_MLE
+    fine_window: 1.0           # half-width around ψ_MLE for fine stepping
+    delta_curv: 0.05           # finite-difference step for curvature at ψ_MLE 
 
-    chunk_size: 1             # branches per worker
-    num_workers: 4            # total branches = chunk_size * num_workers
+    # --- parallel branch generation ---
+    chunk_size: 1              # branches per worker
+    num_workers: 4             # total branches = chunk_size * num_workers
 
-    ratio_threshold: 100
+    # --- inner solver controls ---
+    ratio_threshold: 1000
     n_mc: 100000
     p_cutoff: 1e-12
     max_y_cap: 1e6
-
     localsolver: SLSQP
     xtol_rel: 1e-8
     maxeval: 1000
+    return_full: false          # include optimizer diagnostics?
 
-    return_full: false        # return optimizer diagnostics?
-    fix_phi: true             # hold φ = φ_MLE for profiling ψ
-    trace: false              # verbose output for debugging
+    # --- evaluation options ---
+    fix_phi: true               # hold φ = φ_MLE when profiling ψ
+    trace: false                # verbose per-grid-point output
 
   PL:  # Profile Likelihood settings
     step_size: 0.25

@@ -1,0 +1,64 @@
+experiment:
+  app: negative_binomial
+  estimand: process_rates_weighted_sum
+  model: naive_rates
+  id: exp_v7.0.6
+  sim_id: ~
+  iter_id: ~
+  description: |
+    Estimate a separate rate (θ_j) for each negative binomial process using observed counts and known exposure times. No covariates or regression structure; each process is treated independently. Process-level weights influence the weighted-sum estimand ψ.
+seed: 9406
+processes:
+  n_processes: 5
+  n_per_process: 10
+  labels: auto_upper
+theta:
+  distribution: runif
+  args:
+  - 1.0
+  - 5.0
+  per_process: true
+phi:
+  distribution: rgamma
+  args:
+  - 5.0
+  - 2.0
+  per_process: true
+exposure:
+  name: t
+  distribution: runif
+  args:
+  - 1
+  - 3
+weights:
+  distribution: runif
+  args:
+  - 1
+  - 10
+  normalize_mean_to: 1.0
+optimization_specs:
+  IL:
+    num_std_errors: 0.5
+    step_size: 0.25
+    fine_step_size: 0.05
+    fine_window: 1.0
+    delta_curv: 0.05
+    chunk_size: 1
+    num_workers: 4
+    ratio_threshold: 1000
+    n_mc: 100000
+    p_cutoff: 1e-12
+    max_y_cap: 1e6
+    localsolver: SLSQP
+    xtol_rel: 1e-8
+    maxeval: 1000
+    return_full: false
+    fix_phi: true
+    trace: false
+  PL:
+    step_size: 0.25
+    fine_step_size: 0.05
+    fine_window: 1.0
+    alpha_levels: 0.05
+    trace: false
+

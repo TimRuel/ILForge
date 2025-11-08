@@ -139,7 +139,7 @@ get_theta_phi_hat <- function(omega_hat, t, n_per_process,
     gr = closures$gradient,
     heq = closures$constraint,
     heqjac = closures$jacobian,
-    lower = rep(0, length(init_guess)),
+    lower = rep(1e-12, length(init_guess)),
     localsolver = localsolver,
     control = list(xtol_rel = xtol_rel, maxeval = maxeval),
     deprecatedBehavior = FALSE

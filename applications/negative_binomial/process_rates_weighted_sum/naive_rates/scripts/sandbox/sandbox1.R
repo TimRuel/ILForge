@@ -2,7 +2,7 @@
 experiment_name <- "negative_binomial"
 estimand_name <- "process_rates_weighted_sum"
 model_name <- "naive_rates"
-exp_ver <- "exp_v7.0.2"
+exp_ver <- "exp_v7.0.6"
 sim_num <- "sim_01"
 iter_num <- "iter_01"
 
@@ -30,3 +30,10 @@ n_per_process  <- readRDS(file.path(true_param_path, "n_per_process.rds"))
 data           <- readRDS(file.path(sim_iter_path, "data", "data.rds"))
 
 
+model <- fit_model(data)
+
+theta_MLE <- get_theta_MLE(model)
+
+phi_MLE <- get_phi_MLE(model)
+
+get_psi(theta_MLE, weights)
