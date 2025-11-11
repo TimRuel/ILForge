@@ -78,33 +78,22 @@ likelihood <- function(theta, phi, Y, t, n_per_process) {
 #' )
 #'
 #' @export
-E_gamma_vec <- function(omega,
-                        phi,
-                        t,
-                        n_per_process,
-                        FUN = lgamma,
-                        p_cutoff = 1e-12,
-                        max_y_cap = 1e6) {
-  
-  # --- Basic validation ---
-  if (!is.list(omega) || is.null(omega$theta) || is.null(omega$phi)) {
-    stop("`omega` must be a list with elements `theta` and `phi`.")
-  }
-  
-  J <- length(omega$theta)
-  if (length(omega$phi) != J) stop("omega$theta and omega$phi must have same length.")
-  if (length(n_per_process) != J) stop("n_per_process must have length J.")
+E_gamma <- function(omega,
+                    phi,
+                    t,
+                    n_per_process,
+                    FUN = lgamma,
+                    p_cutoff = 1e-12,
+                    max_y_cap = 1e6) {
   
   n <- sum(n_per_process)
   
   # --- Expand process-level params to observation-level ---
-  omega_theta_vec <- rep(omega$theta, times = n_per_process)
-  omega_phi_vec   <- rep(omega$phi,   times = n_per_process)
-  
-  omega_mu_vec <- t * omega_theta_vec
+  omega_mu_vec <- t * rep(omega$theta, times = n_per_process)
+  omega_phi_vec <- rep(omega$phi,   times = n_per_process)
   
   # --- Initialize output ---
-  E_vals <- numeric(n)
+  E_gamma_vals <- numeric(n)
   
   # --- Loop over observations ---
   for (i in seq_len(n)) {
@@ -115,124 +104,26 @@ E_gamma_vec <- function(omega,
     p_y   <- p_y / sum(p_y)  # normalize for safety
     
     # Compute expected value for this observation
-    E_vals[i] <- sum(FUN(y_seq + phi[i]) * p_y)
+    E_gamma_vals[i] <- sum(FUN(y_seq + phi[i]) * p_y)
   }
   
-  E_vals
+  E_gamma_vals
 }
 
-
-# -------------------------------------------------------------------------
-# Hybrid expectation of gamma/digamma-related functions under NB
-# -------------------------------------------------------------------------
-
-#' Hybrid expected gamma function (exact + Monte Carlo)
+#' Expected log-gamma 
 #'
-#' Computes the expectation
-#' \deqn{E_\omega [ F(Y_{ij} + \phi_j) ]}
-#' where \eqn{Y_{ij} \sim \text{NB}(\mu_{ij} = t_{ij} \theta_{\omega j}, \phi_{\omega j})}.
-#'
-#' For moderate dispersion (small \eqn{\mu / \phi}), the expectation is evaluated
-#' exactly using the Negative Binomial pmf. For high overdispersion, it switches
-#' to Monte Carlo sampling for numerical stability.
-#'
-#' @param omega List with components `theta` and `phi`, defining the expectation
-#'        distribution (i.e. parameters of the Negative Binomial).
-#' @param phi Numeric vector of φ values used inside `F(Y + φ)` (may differ from `omega$phi`).
-#' @param t Numeric vector of exposure times for each observation.
-#' @param n_per_process Integer vector giving number of observations per process.
-#' @param FUN Function to apply: typically `lgamma` or `digamma`.
-#' @param ratio_threshold Numeric; threshold on μ/φ for switching from exact to Monte Carlo.
-#' @param n_mc Integer; number of Monte Carlo samples (default `1e5`).
-#' @param p_cutoff Numeric; tail cutoff for exact summation (default `1e-12`).
-#' @param max_y_cap Numeric; maximum `y` to sum to for exact computation (default `1e6`).
-#'
-#' @return Numeric vector of expected values, one per observation.
-#'
-#' @examples
-#' omega <- list(theta = c(2, 3), phi = c(5, 8))
-#' phi   <- rep(c(5, 8), each = 10)
-#' t     <- runif(20, 1, 3)
-#' n_per_process <- c(10, 10)
-#'
-#' E_gamma_hybrid(
-#'   omega = omega,
-#'   phi = phi,
-#'   t = t,
-#'   n_per_process = n_per_process,
-#'   FUN = lgamma
-#' )
-#'
+#' @inheritParams E_gamma
 #' @export
-E_gamma_hybrid <- function(omega,
-                           phi,
-                           t,
-                           n_per_process,
-                           FUN = lgamma,
-                           ratio_threshold = 100,
-                           n_mc = 1e5,
-                           p_cutoff = 1e-12,
-                           max_y_cap = 1e6) {
-  
-  J <- length(omega$theta)
-  n <- sum(n_per_process)
-  obs_to_process <- rep(seq_len(J), times = n_per_process)
-  
-  omega_theta_vec <- rep(omega$theta, times = n_per_process)
-  omega_phi_vec   <- rep(omega$phi, times = n_per_process)
-  omega_mu_vec    <- t * omega_theta_vec
-  
-  ratio  <- omega_mu_vec / omega_phi_vec
-  E_vals <- numeric(n)
-  
-  # ----- Exact expectation -----
-  idx_exact <- which(ratio <= ratio_threshold)
-  if (length(idx_exact) > 0) {
-    E_vals[idx_exact] <- E_gamma_vec(
-      omega = list(theta = omega_theta_vec[idx_exact], phi = omega_phi_vec[idx_exact]),
-      phi   = phi[idx_exact],
-      t     = t[idx_exact],
-      n_per_process = rep(1, length(idx_exact)),
-      FUN   = FUN,
-      p_cutoff = p_cutoff,
-      max_y_cap = max_y_cap
-    )
-  }
-  
-  # ----- Monte Carlo expectation -----
-  idx_mc <- which(ratio > ratio_threshold)
-  if (length(idx_mc) > 0) {
-    y_samp <- matrix(
-      rnbinom(
-        n_mc * length(idx_mc),
-        mu   = omega_mu_vec[idx_mc],
-        size = omega_phi_vec[idx_mc]
-      ),
-      nrow = n_mc,
-      ncol = length(idx_mc)
-    )
-    phi_mat <- matrix(rep(phi[idx_mc], each = n_mc), nrow = n_mc)
-    E_vals[idx_mc] <- colMeans(FUN(y_samp + phi_mat))
-  }
-  
-  E_vals
+E_log_gamma <- function(omega, phi, t, n_per_process, ...) {
+  E_gamma(omega, phi, t, n_per_process, FUN = lgamma, ...)
 }
 
-
-#' Expected log-gamma using hybrid method
+#' Expected digamma
 #'
-#' @inheritParams E_gamma_hybrid
+#' @inheritParams E_gamma
 #' @export
-E_log_gamma_hybrid <- function(omega, phi, t, n_per_process, ...) {
-  E_gamma_hybrid(omega, phi, t, n_per_process, FUN = lgamma, ...)
-}
-
-#' Expected digamma using hybrid method
-#'
-#' @inheritParams E_gamma_hybrid
-#' @export
-E_digamma_hybrid <- function(omega, phi, t, n_per_process, ...) {
-  E_gamma_hybrid(omega, phi, t, n_per_process, FUN = digamma, ...)
+E_digamma <- function(omega, phi, t, n_per_process, ...) {
+  E_gamma(omega, phi, t, n_per_process, FUN = digamma, ...)
 }
 
 # -------------------------------------------------------------------------
@@ -247,14 +138,11 @@ E_digamma_hybrid <- function(omega, phi, t, n_per_process, ...) {
 #' @param omega List with components `theta` and `phi`, evaluation point.
 #' @param t Numeric vector of exposure times.
 #' @param n_per_process Integer vector of number of observations per process.
-#' @param ratio_threshold Numeric, threshold for hybrid expectation.
-#' @param n_mc Integer, number of Monte Carlo samples.
 #' @param p_cutoff Numeric, tail cutoff for exact summation.
 #' @param max_y_cap Numeric, maximum y to sum to in exact expectation.
 #' @return Function closure: takes theta_phi vector and returns expected log-likelihood scalar.
 #' @export
 expected_log_likelihood_closure <- function(omega, t, n_per_process,
-                                            ratio_threshold = 100, n_mc = 1e5,
                                             p_cutoff = 1e-12, max_y_cap = 1e6) {
   
   J <- length(omega$theta)
@@ -271,10 +159,8 @@ expected_log_likelihood_closure <- function(omega, t, n_per_process,
     lgamma_phi  <- lgamma(phi_vec)
     phi_log_phi <- phi_vec * log(phi_vec)
     
-    E_log_gamma_vals <- E_log_gamma_hybrid(
+    E_log_gamma_vals <- E_log_gamma(
       omega, phi_vec, t, n_per_process,
-      ratio_threshold = ratio_threshold,
-      n_mc = n_mc,
       p_cutoff = p_cutoff,
       max_y_cap = max_y_cap
     )
@@ -328,14 +214,11 @@ expected_gradient_phi <- function(phi_vec, mu_vec, omega_mu_vec, E_digamma_vals,
 #' @param omega List with components `theta` and `phi`
 #' @param t Numeric vector of exposure times
 #' @param n_per_process Integer vector of observations per process
-#' @param ratio_threshold Numeric, hybrid expectation threshold
-#' @param n_mc Integer, Monte Carlo samples
 #' @param p_cutoff Numeric, tail cutoff
 #' @param max_y_cap Numeric, maximum y for exact expectation
 #' @return Function closure taking theta_phi vector, returning gradient vector
 #' @export
 expected_gradient_closure <- function(omega, t, n_per_process,
-                                      ratio_threshold = 100, n_mc = 1e5,
                                       p_cutoff = 1e-12, max_y_cap = 1e6) {
   
   J <- length(omega$theta)
@@ -350,10 +233,8 @@ expected_gradient_closure <- function(omega, t, n_per_process,
     phi_vec   <- rep(phi, times = n_per_process)
     mu_vec    <- t * theta_vec
     
-    E_digamma_vals <- E_digamma_hybrid(
+    E_digamma_vals <- E_digamma(
       omega, phi_vec, t, n_per_process,
-      ratio_threshold = ratio_threshold,
-      n_mc = n_mc,
       p_cutoff = p_cutoff,
       max_y_cap = max_y_cap
     )

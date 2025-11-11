@@ -2,7 +2,7 @@
 experiment_name <- "negative_binomial"
 estimand_name <- "process_rates_weighted_sum"
 model_name <- "naive_rates"
-exp_ver <- "exp_v7.0.6"
+exp_ver <- "exp_v7.0.0"
 sim_num <- "sim_01"
 iter_num <- "iter_01"
 

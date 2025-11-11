@@ -12,171 +12,314 @@
 # -------------------------------------------------------------------------
 
 #' @keywords internal
-.build_psi_grid <- function(psi_min, psi_max, psi_MLE, step_size, fine_step_size, fine_window) {
-  if (psi_min > psi_max) {
-    tmp <- psi_min; psi_min <- psi_max; psi_max <- tmp
-  }
-  # coarse grid outside fine window
-  left_coarse  <- seq(psi_min, psi_MLE - fine_window, by = step_size)
-  right_coarse <- seq(psi_MLE + fine_window, psi_max, by = step_size)
-  # fine grid inside window (include endpoints to stitch cleanly)
-  left_fine  <- seq(max(psi_min, psi_MLE - fine_window), psi_MLE, by = fine_step_size)
-  right_fine <- seq(psi_MLE, min(psi_max, psi_MLE + fine_window), by = fine_step_size)
-  grid <- sort(unique(c(left_coarse, left_fine, right_fine, right_coarse)))
-  grid[grid >= psi_min & grid <= psi_max]
+#' @title Compute nearest ψ grid points to a branch-specific mode
+#'
+#' @description
+#' Internal helper that identifies the immediate left and right ψ grid points
+#' surrounding a branch-specific ψ mode (`psi_hat_branch`), assuming a uniform
+#' grid of the form:
+#'
+#' \deqn{\psi_k = \psi_{\text{MLE}} + k \cdot \text{increment}}
+#'
+#' where `k` is an integer grid index.
+#'
+#' This function does **not** construct the full grid. It computes the
+#' nearest grid-aligned values algebraically, which is fast and avoids
+#' unnecessary vector generation when extending branch evaluations.
+#'
+#' @param psi_hat_branch Numeric scalar. The ψ value at which the branch
+#'   log-likelihood attains its maximum (branch-specific mode).
+#' @param psi_MLE Numeric scalar. The global ψ MLE (acts as grid origin).
+#' @param increment Positive numeric scalar. The grid spacing between ψ values.
+#'
+#' @return A named list with components:
+#' \describe{
+#'   \item{left}{Grid point immediately ≤ `psi_hat_branch`.}
+#'   \item{right}{Grid point immediately ≥ `psi_hat_branch`.}
+#'   \item{k_left}{Integer index of the left grid point relative to `psi_MLE`.}
+#'   \item{k_right}{Integer index of the right grid point relative to `psi_MLE`.}
+#' }
+#'
+#' @examples
+#' .get_adjacent_grid_points(psi_hat_branch = 1.13, psi_MLE = 0, increment = 0.25)
+#'
+#' .get_adjacent_grid_points(psi_hat_branch = -0.68, psi_MLE = 0, increment = 0.25)
+.get_adjacent_grid_points <- function(
+    psi_hat_branch, 
+    psi_MLE, 
+    increment
+    ) {
+  
+  if (!is.numeric(psi_hat_branch) || length(psi_hat_branch) != 1L)
+    stop("`psi_hat_branch` must be a numeric scalar.")
+  if (!is.numeric(psi_MLE) || length(psi_MLE) != 1L)
+    stop("`psi_MLE` must be a numeric scalar.")
+  if (!is.numeric(increment) || length(increment) != 1L || increment <= 0)
+    stop("`increment` must be a positive numeric scalar.")
+  
+  # Grid index of branch_mode relative to psi_MLE
+  k_float <- (psi_hat_branch - psi_MLE) / increment
+  
+  # Nearest integer grid indices on each side
+  k_left  <- floor(k_float)
+  k_right <- ceiling(k_float)
+  
+  list(
+    left    = psi_MLE + k_left  * increment,
+    right   = psi_MLE + k_right * increment,
+    k_left  = k_left,
+    k_right = k_right
+  )
 }
 
 #' @keywords internal
-.eval_branch_ll_at_psi <- function(omega_hat, psi, Y, t, n_per_process, weights,
-                                   init_guess, ratio_threshold, n_mc, p_cutoff, max_y_cap,
-                                   localsolver, xtol_rel, maxeval, return_full,
-                                   theta_MLE, phi_MLE, fix_phi) {
-  J <- length(theta_MLE)
-  if (is.null(init_guess) || length(init_guess) != 2L * J) {
-    init_guess <- c(as.numeric(theta_MLE), as.numeric(phi_MLE))
-  }
+#' @title Evaluate branch log-likelihood at a given ψ
+#'
+#' @description
+#' Internal helper to evaluate the branch log-likelihood at a specific ψ value.
+#' The function:
+#'
+#' 1. Constructs closure objects containing expected log-likelihood components
+#'    conditional on `psi`.
+#' 2. Solves for the maximizing (`theta`, `phi`) for that ψ.
+#' 3. Computes the resulting branch log-likelihood.
+#'
+#' The function returns both the log-likelihood value and the updated parameter
+#' vector, which is used as a warm start when stepping along the branch.
+#'
+#' @param psi Numeric scalar. ψ value at which to evaluate the branch.
+#' @param init_guess Numeric vector. Current warm-start guess for (θ, φ).
+#' @param omega_hat List with elements `theta` and `phi`, specifying the
+#'   expectation-distribution parameters used in the integrated-likelihood
+#'   evaluation.
+#' @param Y Numeric vector of observed counts.
+#' @param t Numeric vector of exposure times (one per observation).
+#' @param n_per_process Integer vector giving number of observations per process.
+#' @param weights Numeric vector of process weights used in the ψ definition.
+#' @param ... Additional arguments passed through to the solver and closure
+#'   constructors (e.g., numerical tolerances, hybrid expectation settings).
+#'
+#' @return A named list with:
+#' \describe{
+#'   \item{branch_val}{Log-likelihood value at the given ψ.}
+#'   \item{theta_phi_hat}{Numeric vector of updated estimates of (θ, φ).}
+#' }
+.eval_branch_ll_at_psi <- function(
+    psi, 
+    init_guess, 
+    omega_hat, 
+    Y, 
+    t, 
+    n_per_process, 
+    weights,
+    p_cutoff,
+    max_y_cap,
+    ...
+    ) {
   
-  opt_out <- get_theta_phi_hat(
-    omega           = omega_hat,
-    t               = t,
-    n_per_process   = n_per_process,
-    init_guess      = init_guess,
-    weights         = weights,
-    psi             = psi,
-    ratio_threshold = ratio_threshold,
-    n_mc            = n_mc,
-    p_cutoff        = p_cutoff,
-    max_y_cap       = max_y_cap,
-    localsolver     = localsolver,
-    xtol_rel        = xtol_rel,
-    maxeval         = maxeval,
-    return_full     = return_full
+  closures <- .make_theta_phi_hat_closures(
+    psi           = psi, 
+    omega_hat     = omega_hat, 
+    t             = t, 
+    n_per_process = n_per_process, 
+    weights       = weights, 
+    p_cutoff      = p_cutoff,
+    max_y_cap     = max_y_cap
   )
   
-  if (is.list(opt_out) && !is.null(opt_out$theta) && !is.null(opt_out$phi)) {
-    theta_hat <- as.numeric(opt_out$theta)
-    phi_hat   <- as.numeric(opt_out$phi)
-  } else {
-    raw <- if (is.list(opt_out) && !is.null(opt_out$par)) as.numeric(opt_out$par) else as.numeric(opt_out)
-    theta_hat <- raw[seq_len(J)]
-    phi_hat   <- raw[J + seq_len(J)]
-  }
+  theta_phi_hat <- .get_theta_phi_hat(
+    closures   = closures, 
+    init_guess = init_guess, 
+    ...
+  )
   
-  phi_for_ll <- if (isTRUE(fix_phi)) as.numeric(phi_MLE) else phi_hat
+  J <- length(omega_hat$theta)
   
-  ll <- log_likelihood(
-    theta         = theta_hat,
-    phi           = phi_for_ll,
+  branch_val <- log_likelihood(
+    theta         = theta_phi_hat[1:J],
+    phi           = theta_phi_hat[(J+1):(2*J)],
     Y             = Y,
     t             = t,
     n_per_process = n_per_process
   )
   
-  list(ll = ll, init_guess_next = c(theta_hat, phi_hat))
+  list(branch_val = branch_val, theta_phi_hat = theta_phi_hat)
 }
 
 # -------------------------------------------------------------------------
 # One-Side Branch Evaluation
 # -------------------------------------------------------------------------
 
-#' Evaluate one side of an integrated likelihood branch
+#' @keywords internal
+#' @title Evaluate one side of a branch outward from its mode
 #'
-#' Computes the integrated (profile) log-likelihood \eqn{\tilde L(\psi)} along a
-#' grid of \eqn{\psi} values **either to the left or right** of \eqn{\psi_{\text{MLE}}}.
+#' @description
+#' Starting from an already-identified branch mode (`branch_df$psi`), this
+#' internal helper iteratively steps outward in ψ using the specified `increment`
+#' (positive for right side, negative for left side). At each step it:
 #'
-#' @param direction "left" or "right"
-#' @param omega_hat Numeric vector; optimized \eqn{\omegâ}.
-#' @param weights Numeric vector of process weights (length J).
-#' @param Y Numeric vector of counts.
-#' @param t Numeric vector of exposures.
-#' @param n_per_process Integer vector (# obs per process, length J).
-#' @param theta_MLE,phi_MLE MLE anchors (for init & optional fixed-phi plug-in).
-#' @param psi_MLE Scalar ψ at MLE.
-#' @param psi_grid Numeric vector of ψ values (full grid; this picks a side).
-#' @param ratio_threshold,n_mc,p_cutoff,max_y_cap,localsolver,xtol_rel,maxeval,return_full Solver options.
-#' @param fix_phi Logical; if TRUE, hold \eqn{\phi=\phi_{\text{MLE}}} when evaluating.
-#' @param trace Logical; verbose per-point messages.
-#' @return list with `psi` and `Integrated` vectors
-#' @export
-run_branch_side <- function(direction,
-                            omega_hat,
-                            weights,
-                            Y,
-                            t,
-                            n_per_process,
-                            theta_MLE,
-                            phi_MLE,
-                            psi_MLE,
-                            psi_grid,
-                            ratio_threshold = 100,
-                            n_mc = 1e5,
-                            p_cutoff = 1e-12,
-                            max_y_cap = 1e6,
-                            localsolver = "SLSQP",
-                            xtol_rel = 1e-8,
-                            maxeval = 1000,
-                            return_full = FALSE,
-                            fix_phi = TRUE,
-                            trace = FALSE) {
+#' 1. Solves for (`theta`, `phi`) conditional on the new ψ value.
+#' 2. Computes the branch log-likelihood at that point.
+#' 3. Appends the result to the branch data frame.
+#'
+#' The stepping continues until the branch log-likelihood falls below the
+#' specified cutoff.
+#'
+#' Typically invoked twice from `.compute_IL_branch()`: once with positive
+#' increment for the right side, once with negative increment for the left side.
+#'
+#' @param increment Numeric scalar. Step size and sign for ψ progression.
+#'   Use a positive value to extend rightward, and a negative value to extend
+#'   leftward.
+#' @param branch_df Data frame containing one initial row with columns:
+#'   \describe{
+#'     \item{psi}{Branch mode ψ value.}
+#'     \item{value}{Log-likelihood at the branch mode.}
+#'   }
+#' @param branch_cutoff Numeric scalar. Minimum log-likelihood threshold at
+#'   which stepping stops. Usually equal to:
+#'   \deqn{\ell_{\max} - \frac{1}{2}\chi^2_{1,\,\alpha}}
+#'   for confidence interval construction.
+#' @param init_guess Numeric vector containing (`theta`, `phi`) estimates at
+#'   the branch mode. Used as the warm-start for numerical optimization as ψ
+#'   steps outward.
+#' @param omega_hat List with expectation parameters (`theta`, `phi`) used
+#'   in integrated-likelihood computations.
+#' @param Y Numeric vector of observed counts.
+#' @param t Numeric vector of exposure times.
+#' @param n_per_process Integer vector with number of observations per process.
+#' @param weights Numeric process weights.
+#' @param ... Additional arguments passed to `.eval_branch_ll_at_psi()`.
+#'
+#' @return A data frame with two columns:
+#' \describe{
+#'   \item{psi}{Evaluated ψ values (sorted ascending).}
+#'   \item{value}{Corresponding branch log-likelihoods.}
+#' }
+#'
+#' @examples
+#' # Example (pseudocode):
+#' # branch_df <- data.frame(psi = psi_mode, value = branch_max)
+#' # out <- .run_branch_side(
+#' #   increment     = 0.05,
+#' #   branch_df     = branch_df,
+#' #   branch_cutoff = branch_max - qchisq(0.99, df=1)/2,
+#' #   init_guess    = theta_phi_at_mode,
+#' #   omega_hat     = omega_hat,
+#' #   Y = Y, t = t, n_per_process = n_per_process, weights = weights
+#' # )
+.run_branch_side <- function(
+    increment,
+    start,
+    branch_cutoff,
+    init_guess,
+    omega_hat, 
+    Y, 
+    t, 
+    n_per_process, 
+    weights,
+    p_cutoff,
+    max_y_cap,
+    ...
+    ) {
   
-  direction <- match.arg(direction, choices = c("left", "right"))
+  current_psi <- start
+  current_val <- 1000
+
+  branch_df <- data.frame(psi = numeric(0), value = numeric(0))
   
-  if (direction == "left") {
-    psi_working <- rev(psi_grid[psi_grid <= psi_MLE])
-  } else {
-    psi_working <- psi_grid[psi_grid >  psi_MLE]
-  }
-  if (length(psi_working) == 0L) {
-    return(list(psi = numeric(0), Integrated = numeric(0)))
-  }
-  
-  J <- length(theta_MLE)
-  init_guess <- c(as.numeric(theta_MLE), as.numeric(phi_MLE))
-  if (!is.numeric(init_guess) || length(init_guess) != 2L * J) {
-    stop("init_guess must be numeric length 2*J (theta then phi).")
-  }
-  
-  ll_vals <- numeric(length(psi_working))
-  
-  for (i in seq_along(psi_working)) {
-    psi_i <- psi_working[i]
+  # Step outward until cutoff reached
+  while (is.finite(current_val) && current_val >= branch_cutoff) {
     
     eval <- .eval_branch_ll_at_psi(
-      omega_hat       = omega_hat,
-      psi             = psi_i,
-      Y               = Y,
-      t               = t,
-      n_per_process   = n_per_process,
-      weights         = weights,
-      init_guess      = init_guess,
-      ratio_threshold = ratio_threshold,
-      n_mc            = n_mc,
-      p_cutoff        = p_cutoff,
-      max_y_cap       = max_y_cap,
-      localsolver     = localsolver,
-      xtol_rel        = xtol_rel,
-      maxeval         = maxeval,
-      return_full     = return_full,
-      theta_MLE       = theta_MLE,
-      phi_MLE         = phi_MLE,
-      fix_phi         = fix_phi
+      psi           = current_psi, 
+      init_guess    = init_guess, 
+      omega_hat     = omega_hat, 
+      Y             = Y, 
+      t             = t, 
+      n_per_process = n_per_process, 
+      weights       = weights, 
+      p_cutoff      = p_cutoff,
+      max_y_cap     = max_y_cap,
+      ...
     )
     
-    ll_vals[i] <- eval$ll
-    init_guess <- eval$init_guess_next
+    current_val <- eval$branch_val
+    init_guess  <- eval$theta_phi_hat
     
-    if (isTRUE(trace)) {
-      message(sprintf("[Branch %s] psi=%.6g | ll=%.6f | fix_phi=%s",
-                      direction, psi_i, ll_vals[i],
-                      toupper(as.character(isTRUE(fix_phi)))))
-    }
+    branch_df <- dplyr::bind_rows(branch_df, data.frame(psi = current_psi, value = current_val))
+    
+    current_psi <- current_psi + increment
   }
   
-  if (direction == "left") {
-    list(psi = rev(psi_working), Integrated = rev(ll_vals))
-  } else {
-    list(psi = psi_working, Integrated = ll_vals)
+  # Ensure ascending ψ order (for consistent merging)
+  branch_df <- branch_df |> 
+    unique() |> 
+    dplyr::arrange(psi)
+  
+  rownames(branch_df) <- NULL
+  
+  branch_df
+}
+
+# -------------------------------------------------------------------------
+# Branch Maximization
+# -------------------------------------------------------------------------
+
+#' @keywords internal
+#' @title Locate branch-specific ψ mode via bounded maximization
+#'
+.maximize_branch <- function(
+    increment,
+    search_interval,
+    init_guess,
+    omega_hat,
+    Y,
+    t,
+    n_per_process,
+    weights,
+    p_cutoff,      
+    max_y_cap,
+    ...
+    ) {
+
+  # ---- Objective function for optimize() ----
+  obj <- function(psi) {
+    out <- .eval_branch_ll_at_psi(
+      psi           = psi,
+      init_guess    = init_guess,
+      omega_hat     = omega_hat,
+      Y             = Y,
+      t             = t,
+      n_per_process = n_per_process,
+      weights       = weights,
+      p_cutoff      = p_cutoff,
+      max_y_cap     = max_y_cap,
+      ...
+    )
+    -out$branch_val
   }
+  
+  psi_hat_branch <- optimize(obj, interval = search_interval)$minimum
+  
+  eval_at_mode <- .eval_branch_ll_at_psi(
+    psi           = psi_hat_branch,
+    init_guess    = init_guess,
+    omega_hat     = omega_hat,
+    Y             = Y,
+    t             = t,
+    n_per_process = n_per_process,
+    weights       = weights,
+    p_cutoff      = p_cutoff,
+    max_y_cap     = max_y_cap,
+    ...
+  )
+  
+  list(
+    psi_hat_branch = psi_hat_branch, 
+    branch_max     = eval_at_mode$branch_val,
+    theta_phi_hat  = eval_at_mode$theta_phi_hat
+    )
 }
 
 # -------------------------------------------------------------------------
@@ -189,21 +332,81 @@ run_branch_side <- function(direction,
 #' @param psi_grid Numeric ψ grid (full).
 #' @return data.frame with columns `psi`, `Integrated`
 #' @export
-compute_IL_branch <- function(omega_hat, weights, Y, t, n_per_process,
-                              theta_MLE, phi_MLE, psi_MLE, psi_grid,
-                              ...) {
+.compute_IL_branch <- function(
+    increment,
+    alpha,
+    omega_hat,
+    theta_phi_MLE,
+    psi_MLE,
+    weights, 
+    Y, 
+    t, 
+    n_per_process,
+    search_interval,
+    p_cutoff,
+    max_y_cap,
+    ...
+    ) {
   
-  left  <- run_branch_side("left",  omega_hat, weights, Y, t, n_per_process,
-                           theta_MLE, phi_MLE, psi_MLE, psi_grid, ...)
-  right <- run_branch_side("right", omega_hat, weights, Y, t, n_per_process,
-                           theta_MLE, phi_MLE, psi_MLE, psi_grid, ...)
-  
-  df <- dplyr::bind_rows(
-    data.frame(psi = left$psi,  Integrated = left$Integrated,  row.names = NULL),
-    data.frame(psi = right$psi, Integrated = right$Integrated, row.names = NULL)
+  branch_max_params <- .maximize_branch(
+    increment       = increment,
+    search_interval = search_interval,
+    init_guess      = theta_phi_MLE,
+    omega_hat       = omega_hat,
+    Y               = Y,
+    t               = t,
+    n_per_process   = n_per_process,
+    weights         = weights,
+    p_cutoff        = p_cutoff,      
+    max_y_cap       = max_y_cap,
+    ...
   )
-  df <- dplyr::arrange(df, psi)
+  
+  psi_hat_branch <- branch_max_params$psi_hat_branch
+  
+  crit <- qchisq(1 - alpha, df = 1) / 2
+  branch_cutoff <- branch_max_params$branch_max - crit
+  
+  init_guess <- branch_max_params$theta_phi_hat
+  
+  adjacent_grid_points <- .get_adjacent_grid_points(psi_hat_branch, psi_MLE, increment)
+  
+  left <- .run_branch_side(
+    increment     = -increment,
+    start         = adjacent_grid_points$left,
+    branch_cutoff = branch_cutoff,
+    init_guess    = init_guess,
+    omega_hat     = omega_hat, 
+    Y             = Y, 
+    t             = t, 
+    n_per_process = n_per_process, 
+    weights       = weights,
+    p_cutoff      = p_cutoff,      
+    max_y_cap     = max_y_cap,
+    ...
+  )
+  
+  right <- .run_branch_side(
+    increment     = increment,
+    start         = adjacent_grid_points$right,
+    branch_cutoff = branch_cutoff,
+    init_guess    = init_guess,
+    omega_hat     = omega_hat, 
+    Y             = Y, 
+    t             = t, 
+    n_per_process = n_per_process, 
+    weights       = weights,
+    p_cutoff      = p_cutoff,      
+    max_y_cap     = max_y_cap,
+    ...
+  )
+  
+  df <- left |> 
+    dplyr::bind_rows(right) |> 
+    dplyr::arrange(psi)
+  
   rownames(df) <- NULL
+  
   df
 }
 
@@ -216,26 +419,24 @@ compute_IL_branch <- function(omega_hat, weights, Y, t, n_per_process,
 #' @param IL_branches list of data.frames from `compute_IL_branch()`
 #' @return list with `df` (psi, Integrated) and `branches_matrix`
 #' @export
-get_log_L_bar <- function(IL_branches) {
-  if (length(IL_branches) == 0L) {
-    return(list(df = data.frame(psi = numeric(0), Integrated = numeric(0)),
-                branches_matrix = matrix(numeric(0), nrow = 0, ncol = 0)))
-  }
-  merged <- Reduce(function(x, y) dplyr::full_join(x, y, by = "psi"), IL_branches)
+.get_log_L_bar <- function(IL_branches) {
+  
+  merged <- Reduce(function(x, y) dplyr::inner_join(x, y, by = "psi"), IL_branches)
   merged <- dplyr::arrange(merged, psi)
   
   mat <- as.matrix(merged[, -1, drop = FALSE])
   storage.mode(mat) <- "double"
   
-  eff_R <- pmax(rowSums(!is.na(mat)), 1L)
+  eff_R <- ncol(mat)
   lse   <- matrixStats::rowLogSumExps(mat, na.rm = TRUE)
   log_L_bar <- lse - log(eff_R)
   
   rownames(mat) <- as.character(merged$psi)
+  colnames(mat) <- NULL
   
   list(
-    df = data.frame(psi = merged$psi, Integrated = as.numeric(log_L_bar)),
-    branches_matrix = t(mat)
+    df = data.frame(psi = merged$psi, value = as.numeric(log_L_bar)),
+    branches_matrix = mat
   )
 }
 
@@ -244,12 +445,6 @@ get_log_L_bar <- function(IL_branches) {
 # -------------------------------------------------------------------------
 
 #' Compute integrated log-likelihood across multiple random branches (parallel)
-#'
-#' Strategy:
-#' 1) Sample several ω̂ (no ψ search).
-#' 2) Estimate curvature of branch logL at ψ_MLE using finite differences (±δ).
-#' 3) Use spread of SEs across a few ω̂ to size the global ψ grid.
-#' 4) Evaluate full branches on that grid and average via log-sum-exp.
 #'
 #' @param config list with `optimization_specs$IL`
 #' @param data data.frame with Y, t, process
@@ -262,148 +457,79 @@ get_integrated_LL <- function(config, data, weights) {
   il_cfg <- sanitize_config(il_cfg)
   invisible(list2env(il_cfg, envir = environment()))
   
-  # Defaults
-  num_std_errors <- num_std_errors %||% 3
-  step_size      <- step_size      %||% 0.25
-  fine_step_size <- fine_step_size %||% 0.05
-  fine_window    <- fine_window    %||% 1.0
-  delta_curv     <- delta_curv     %||% fine_step_size  # curvature step
+  alpha <- min(alpha_levels)
+  num_branches <- max(1L, chunk_size * num_workers)
   
-  chunk_size     <- as.integer(chunk_size  %||% 1L)
-  num_workers    <- as.integer(num_workers %||% 1L)
-  num_branches   <- max(1L, chunk_size * num_workers)
+  Y <- data$Y
+  t <- data$t
+  n_per_process <- table(data$process)
+  J <- length(n_per_process)
   
-  ratio_threshold <- ratio_threshold %||% 100
-  n_mc            <- n_mc           %||% 1e5
-  p_cutoff        <- p_cutoff       %||% 1e-12
-  max_y_cap       <- max_y_cap      %||% 1e6
-  localsolver     <- localsolver    %||% "SLSQP"
-  xtol_rel        <- xtol_rel       %||% 1e-8
-  maxeval         <- maxeval        %||% 1000L
-  return_full     <- isTRUE(return_full)
-  fix_phi         <- isTRUE(fix_phi)
-  trace           <- isTRUE(trace)
+  model <- fit_model(data)
   
-  Y <- as.numeric(data$Y)
-  t <- as.numeric(data$t)
-  if (is.null(data$process)) stop("`data$process` is required to compute n_per_process.")
-  n_per_process <- as.integer(table(data$process))
-  
-  # MLE anchors
-  model     <- fit_model(data)
   theta_MLE <- get_theta_MLE(model)
-  phi_MLE   <- get_phi_MLE(model)
-  psi_MLE   <- get_psi(theta_MLE, weights)
-  J         <- length(theta_MLE)
   
-  # ω̂ constraint closure at ψ_MLE
-  omega_hat_con_fn <- omega_hat_con_fn_closure(weights, psi_MLE)
+  phi_MLE <- get_phi_MLE(model)
   
-  # 1) Draw ω̂ for multiple branches
-  branch_omegas <- foreach::foreach(
-    i = seq_len(num_branches),
-    .combine = "list",
-    .multicombine = TRUE,
-    .errorhandling = "remove",
-    .options.future = list(seed = TRUE, chunk.size = chunk_size, packages = c("nloptr"))
-  ) %dofuture% {
-    init_guess <- stats::rexp(2L * J, rate = 1)
-    omega_hat  <- get_omega_hat(omega_hat_con_fn, init_guess,
-                                localsolver = localsolver,
-                                xtol_rel = xtol_rel,
-                                maxeval = maxeval)
-    list(omega_hat = omega_hat)
-  }
-  omega_hats <- lapply(branch_omegas, `[[`, "omega_hat")
+  theta_phi_MLE <- c(theta_MLE, phi_MLE)
   
-  # 2) Estimate curvature at ψ_MLE across a few ω̂ to size ψ-range
-  k_sample <- min(length(omega_hats), 5L)
-  if (k_sample == 0L) stop("Failed to compute any omega_hat branches.")
+  psi_MLE <- get_psi(theta_MLE, weights)
   
-  se_vec <- numeric(k_sample)
-  for (k in seq_len(k_sample)) {
-    omega_hat_k <- omega_hats[[k]]
-    # finite-difference second derivative L'' at ψ_MLE
-    eval0 <- .eval_branch_ll_at_psi(omega_hat_k, psi_MLE,
-                                    Y, t, n_per_process, weights,
-                                    init_guess = c(theta_MLE, phi_MLE),
-                                    ratio_threshold, n_mc, p_cutoff, max_y_cap,
-                                    localsolver, xtol_rel, maxeval, return_full,
-                                    theta_MLE, phi_MLE, fix_phi)
-    evalm <- .eval_branch_ll_at_psi(omega_hat_k, psi_MLE - delta_curv,
-                                    Y, t, n_per_process, weights,
-                                    init_guess = eval0$init_guess_next,
-                                    ratio_threshold, n_mc, p_cutoff, max_y_cap,
-                                    localsolver, xtol_rel, maxeval, return_full,
-                                    theta_MLE, phi_MLE, fix_phi)
-    evalp <- .eval_branch_ll_at_psi(omega_hat_k, psi_MLE + delta_curv,
-                                    Y, t, n_per_process, weights,
-                                    init_guess = evalm$init_guess_next,
-                                    ratio_threshold, n_mc, p_cutoff, max_y_cap,
-                                    localsolver, xtol_rel, maxeval, return_full,
-                                    theta_MLE, phi_MLE, fix_phi)
-    
-    Lpp <- (evalp$ll - 2 * eval0$ll + evalm$ll) / (delta_curv^2)
-    # guard against non-concavity / numerical artifacts
-    if (!is.finite(Lpp) || Lpp >= 0) {
-      se_vec[k] <- NA_real_
-    } else {
-      se_vec[k] <- sqrt(1 / (-Lpp))
-    }
-  }
-  # robust SE across sampled branches
-  se_vec <- se_vec[is.finite(se_vec)]
-  psi_se <- if (length(se_vec)) stats::median(se_vec) else fine_window
+  psi_MLE_SE <- .compute_psi_MLE_SE(theta_MLE, phi_MLE, weights, data)
   
-  # 3) Build global ψ-grid endpoints
-  range_ext <- max(num_std_errors * psi_se, fine_window)
-  psi_min <- psi_MLE - range_ext
-  psi_max <- psi_MLE + range_ext
+  search_interval <- psi_MLE + c(-1, 1) * num_std_errors * psi_MLE_SE
   
-  psi_grid <- .build_psi_grid(psi_min, psi_max, psi_MLE, step_size, fine_step_size, fine_window)
+  omega_hat_con_fn <- .omega_hat_con_fn_closure(weights, psi_MLE)
   
-  # 4) Evaluate full branches on the grid
+  omega_hat_dist_fun <- match.fun(config$omega$distribution)
+  omega_hat_dist_args <- config$omega$args
+  
   result <- foreach::foreach(
-    omega_hat = omega_hats,
+    i               = seq_len(num_branches),
     .combine        = "list",
     .multicombine   = TRUE,
     .errorhandling  = "remove",
     .options.future = list(seed = TRUE, chunk.size = chunk_size, packages = c("nloptr","dplyr","matrixStats"))
   ) %dofuture% {
     
-    IL_branch <- compute_IL_branch(
+    omega_hat_init_guess <- do.call(omega_hat_dist_fun, c(list(n = 2*J), as.list(omega_hat_dist_args)))
+
+    omega_hat <- .draw_omega_hat(
+      omega_hat_con_fn = omega_hat_con_fn, 
+      init_guess       = omega_hat_init_guess,
+      localsolver      = localsolver,
+      control          = list(xtol_rel = xtol_rel, maxeval = maxeval)
+    )
+    
+    IL_branch <- .compute_IL_branch(
+      increment       = increment,
+      alpha           = alpha,
       omega_hat       = omega_hat,
-      weights         = weights,
-      Y               = Y,
-      t               = t,
-      n_per_process   = n_per_process,
-      theta_MLE       = theta_MLE,
-      phi_MLE         = phi_MLE,
+      theta_phi_MLE   = theta_phi_MLE,
       psi_MLE         = psi_MLE,
-      psi_grid        = psi_grid,
-      ratio_threshold = ratio_threshold,
-      n_mc            = n_mc,
-      p_cutoff        = p_cutoff,
+      weights         = weights, 
+      Y               = Y, 
+      t               = t, 
+      n_per_process   = n_per_process,
+      search_interval = search_interval,
+      p_cutoff        = p_cutoff,      
       max_y_cap       = max_y_cap,
       localsolver     = localsolver,
-      xtol_rel        = xtol_rel,
-      maxeval         = maxeval,
-      return_full     = return_full,
-      fix_phi         = fix_phi,
-      trace           = trace
+      control         = list(xtol_rel = xtol_rel, maxeval = maxeval)
     )
     
     list(IL_branch = IL_branch, omega_hat = omega_hat)
   }
   
   IL_branches <- lapply(result, `[[`, "IL_branch")
-  omega_hat   <- lapply(result, `[[`, "omega_hat")
+  omega_hats   <- lapply(result, `[[`, "omega_hat")
   
-  merged <- get_log_L_bar(IL_branches)
+  log_L_bar <- .get_log_L_bar(IL_branches)
   
   list(
-    log_L_bar_df = merged$df,
-    IL_branches  = IL_branches,
-    omega_hat    = omega_hat
+    log_L_bar   = log_L_bar,
+    IL_branches = IL_branches,
+    omega_hats  = omega_hats
   )
 }
+

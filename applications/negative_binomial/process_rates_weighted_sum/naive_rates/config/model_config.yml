@@ -16,15 +16,19 @@ processes:
   n_processes: 5
   n_per_process: 10
   labels: auto_upper          # auto_upper | auto_lower | auto_num | explicit list
+  
+omega:
+  distribution: rgamma
+  args: [5.0, 1.0]
 
 theta:
-  distribution: runif
-  args: [1.0, 5.0]
+  distribution: rgamma
+  args: [8.0, 2.0]
   per_process: true
 
 phi:
   distribution: rgamma
-  args: [5.0, 2.0]
+  args: [10.0, 3.0]
   per_process: true
 
 exposure:
@@ -40,35 +44,30 @@ weights:
 optimization_specs:
 
   IL:  # Integrated Likelihood settings
-    # --- ψ-grid sizing & curvature estimation ---
-    num_std_errors: 3          # width of ψ-grid in SE units
-    step_size: 0.25            # coarse ψ step
-    fine_step_size: 0.05       # fine ψ step near ψ_MLE
-    fine_window: 1.0           # half-width around ψ_MLE for fine stepping
-    delta_curv: 0.05           # finite-difference step for curvature at ψ_MLE 
+    # --- ψ-grid sizing ---
+    num_std_errors: 6          # width of ψ-grid in SE units
+    increment: 0.05            # coarse ψ step
+    alpha_levels: [0.01, 0.05, 0.10]
 
     # --- parallel branch generation ---
     chunk_size: 1              # branches per worker
-    num_workers: 64             # total branches = chunk_size * num_workers
+    num_workers: 4             # total branches = chunk_size * num_workers
 
     # --- inner solver controls ---
-    ratio_threshold: 10000000
-    n_mc: 100000
     p_cutoff: 1e-12
     max_y_cap: 1e6
     localsolver: SLSQP
     xtol_rel: 1e-8
     maxeval: 1000
-    return_full: false          # include optimizer diagnostics?
-
-    # --- evaluation options ---
-    fix_phi: true               # hold φ = φ_MLE when profiling ψ
-    trace: false                # verbose per-grid-point output
 
   PL:  # Profile Likelihood settings
-    step_size: 0.25
-    fine_step_size: 0.05
-    fine_window: 1.0
-
-    alpha_levels: [0.05]      # can list multiple (e.g., [0.05, 0.01])
-    trace: false
+    # --- ψ-grid sizing ---
+    increment: 0.05
+    alpha_levels: [0.01, 0.05, 0.10]
+    
+    # --- inner solver controls ---
+    p_cutoff: 1e-12
+    max_y_cap: 1e6
+    localsolver: SLSQP
+    xtol_rel: 1e-8
+    maxeval: 1000

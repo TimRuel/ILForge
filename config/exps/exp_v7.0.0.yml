@@ -12,17 +12,22 @@ processes:
   n_processes: 5
   n_per_process: 10
   labels: auto_upper
-theta:
-  distribution: runif
+omega:
+  distribution: rgamma
   args:
-  - 1.0
   - 5.0
+  - 1.0
+theta:
+  distribution: rgamma
+  args:
+  - 8.0
+  - 2.0
   per_process: true
 phi:
   distribution: rgamma
   args:
-  - 5.0
-  - 2.0
+  - 10.0
+  - 3.0
   per_process: true
 exposure:
   name: t
@@ -38,27 +43,28 @@ weights:
   normalize_mean_to: 1.0
 optimization_specs:
   IL:
-    num_std_errors: 3
-    step_size: 0.25
-    fine_step_size: 0.05
-    fine_window: 1.0
-    delta_curv: 0.05
+    num_std_errors: 6
+    increment: 0.05
+    alpha_levels:
+    - 0.01
+    - 0.05
+    - 0.1
     chunk_size: 1
-    num_workers: 64
-    ratio_threshold: 10000000
-    n_mc: 100000
+    num_workers: 4
     p_cutoff: 1e-12
     max_y_cap: 1e6
     localsolver: SLSQP
     xtol_rel: 1e-8
     maxeval: 1000
-    return_full: false
-    fix_phi: true
-    trace: false
   PL:
-    step_size: 0.25
-    fine_step_size: 0.05
-    fine_window: 1.0
-    alpha_levels: 0.05
-    trace: false
+    increment: 0.05
+    alpha_levels:
+    - 0.01
+    - 0.05
+    - 0.1
+    p_cutoff: 1e-12
+    max_y_cap: 1e6
+    localsolver: SLSQP
+    xtol_rel: 1e-8
+    maxeval: 1000
 

@@ -4,12 +4,16 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
+  library(future)
+  library(future.callr)
   library(doFuture)
   library(here)
   library(quarto)
   library(yaml)
   library(fs)
   library(nloptr)
+  library(foreach)
+  library(miceadds)
 })
 
 # -------------------------------

@@ -23,7 +23,7 @@ get_psi <- function(theta, weights) {
 #' @param weights Named numeric vector of process weights.
 #' @param data Data frame with columns `process` and `t` (exposure per observation).
 #' @return Numeric scalar, the standard error of psi.
-get_psi_MLE_SE <- function(theta_MLE, phi_MLE, weights, data) {
+.compute_psi_MLE_SE <- function(theta_MLE, phi_MLE, weights, data) {
   se_terms <- data %>%
     group_by(process) %>%
     summarise(
@@ -37,40 +37,6 @@ get_psi_MLE_SE <- function(theta_MLE, phi_MLE, weights, data) {
   
   var_theta <- theta_vec / se_terms$S1 + theta_vec^2 / phi_vec * se_terms$S2 / (se_terms$S1^2)
   sqrt(sum((weights^2) * var_theta))
-}
-
-#' Generate psi grid for profile likelihood
-#'
-#' Constructs a combined coarse and fine grid for psi, centered at the MLE
-#' and covering a specified number of standard errors.
-#'
-#' @param theta_MLE Named numeric vector of theta MLEs.
-#' @param phi_MLE Named numeric vector of phi MLEs.
-#' @param weights Named numeric vector of process weights.
-#' @param data Data frame with columns `process` and `t`.
-#' @param num_std_errors Numeric, how many standard errors to span around MLE (default 3).
-#' @param step_size Numeric, step size for coarse grid (default 0.1).
-#' @param fine_step_size Numeric, step size for fine grid (default 0.01).
-#' @param fine_window Numeric, half-width around MLE for fine grid (default 1).
-#' @return Numeric vector of psi values (sorted, unique).
-get_psi_grid <- function(theta_MLE, phi_MLE, weights, data,
-                         num_std_errors = 3,
-                         step_size = 0.1,
-                         fine_step_size = 0.01,
-                         fine_window = 1) {
-  
-  psi_MLE <- get_psi(theta_MLE, weights)
-  psi_MLE_SE <- get_psi_MLE_SE(theta_MLE, phi_MLE, weights, data)
-  endpoints <- psi_MLE + c(-1, 1) * num_std_errors * psi_MLE_SE
-  
-  coarse_grid <- seq(endpoints[1], endpoints[2], by = step_size)
-  
-  lower <- max(coarse_grid[coarse_grid <= (psi_MLE - fine_window)], min(coarse_grid))
-  upper <- min(coarse_grid[coarse_grid >= (psi_MLE + fine_window)], max(coarse_grid))
-  
-  fine_grid <- seq(lower, upper, by = fine_step_size)
-  
-  sort(unique(c(coarse_grid, fine_grid, psi_MLE)))
 }
 
 get_search_interval <- function(model,

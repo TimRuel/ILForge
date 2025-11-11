@@ -11,7 +11,7 @@
 #' @param psi_MLE Numeric, target weighted sum
 #' @param J Integer, number of processes
 #' @return Function closure taking omega_hat vector (length 2*J, first J = theta, last J = phi)
-omega_hat_con_fn_closure <- function(weights, psi_MLE) {
+.omega_hat_con_fn_closure <- function(weights, psi_MLE) {
   
   J <- length(weights)
   
@@ -33,18 +33,19 @@ omega_hat_con_fn_closure <- function(weights, psi_MLE) {
 #' @return List with components:
 #'   - theta: optimized theta vector
 #'   - phi: optimized phi vector
-get_omega_hat <- function(omega_hat_con_fn, init_guess,
-                          localsolver = "SLSQP",
-                          xtol_rel = 1e-8,
-                          maxeval = 1000) {
+.draw_omega_hat <- function(
+    omega_hat_con_fn, 
+    init_guess,
+    ...
+    ) {
   
   res <- nloptr::auglag(
     x0 = init_guess,
     fn = function(omega_hat) 0,      # Dummy objective, we only need the constraint
     heq = omega_hat_con_fn,
-    localsolver = localsolver,
-    control = list(xtol_rel = xtol_rel, maxeval = maxeval),
-    deprecatedBehavior = FALSE
+    lower = rep(1e-12, length(init_guess)),
+    deprecatedBehavior = FALSE,
+    ...
   )
   
   J <- length(init_guess) / 2
