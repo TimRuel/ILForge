@@ -1,4 +1,18 @@
-`%||%` <- function(a, b) if (!is.null(a)) a else b
+#' Null-coalescing operator
+#'
+#' Returns the left-hand side if it is not `NULL`, otherwise returns the
+#' right-hand side. Used internally for configuration defaults.
+#'
+#' @param x Primary value.
+#' @param y Fallback value if `x` is `NULL`.
+#'
+#' @return `x` if non-`NULL`, otherwise `y`.
+#'
+#' @keywords internal
+#' @noRd
+`%||%` <- function(x, y) {
+  if (is.null(x)) y else x
+}
 
 get_seed_for_iter <- function(base_seed, iter_id) {
   

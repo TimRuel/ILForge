@@ -33,7 +33,7 @@
 #' @export
 .make_theta_phi_hat_closures <- function(
     psi, 
-    omega_hat, 
+    theta_phi_0, 
     t, 
     n_per_process, 
     weights, 
@@ -45,7 +45,7 @@
   
   # Precompute expected log-likelihood and gradient closures
   ell_closure <- expected_log_likelihood_closure(
-    omega = omega_hat,
+    theta_phi_0 = theta_phi_0,
     t = t,
     n_per_process = n_per_process,
     p_cutoff = p_cutoff,
@@ -53,7 +53,7 @@
   )
   
   grad_closure <- expected_gradient_closure(
-    omega = omega_hat,
+    theta_phi_0 = theta_phi_0,
     t = t,
     n_per_process = n_per_process,
     p_cutoff = p_cutoff,
